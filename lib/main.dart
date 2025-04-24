@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'features/motivation/data/quotes.dart'; // Import des citations
 import 'features/quiz/presentation/screens/quiz_screen.dart'; // Assurez-vous que cet import est correct
 import 'features/game/presentation/screens/game_screen.dart'; // Import de la page de jeu
+import 'features/game/presentation/screens/game2_screen.dart'; // Import de la page du second jeu
 
 void main() {
   runApp(const MyApp());
@@ -184,7 +185,7 @@ class _MotivationScreenState extends State<MotivationScreen>
                 ElevatedButton(
                   onPressed: () {
                     Navigator.pushNamed(
-                        context, '/game'); // Navigation vers la page de jeu
+                        context, '/game'); // Navigation vers le premier jeu
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.white,
@@ -196,6 +197,25 @@ class _MotivationScreenState extends State<MotivationScreen>
                   ),
                   child: const Text(
                     "Jouer à un jeu",
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                ElevatedButton(
+                  onPressed: () {
+                    Navigator.pushNamed(
+                        context, '/game2'); // Navigation vers le second jeu
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.white,
+                    foregroundColor: Colors.orange,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 24,
+                      vertical: 12,
+                    ),
+                  ),
+                  child: const Text(
+                    "Jouer au second jeu",
                     style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                   ),
                 ),
@@ -217,6 +237,8 @@ class AppRouter {
         return MaterialPageRoute(builder: (_) => const QuizScreen());
       case '/game': // Nouvelle route pour le jeu
         return MaterialPageRoute(builder: (_) => const GameScreen());
+      case '/game2': // Nouvelle route pour le second jeu
+        return MaterialPageRoute(builder: (_) => const Game2Screen());
       default:
         return MaterialPageRoute(
           builder: (_) => Scaffold(
