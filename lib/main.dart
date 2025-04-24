@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
+import 'features/motivation/data/quotes.dart'; // Import des citations
+import 'features/quiz/presentation/screens/quiz_screen.dart'; // Assurez-vous que cet import est correct
+import 'features/game/presentation/screens/game_screen.dart'; // Import de la page de jeu
 
 void main() {
   runApp(const MyApp());
@@ -15,9 +18,21 @@ class MyApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         primarySwatch: Colors.blue,
-        brightness: Brightness.dark,
+        brightness: Brightness.light, // Thème clair
+        textTheme: const TextTheme(
+          bodyText2: TextStyle(color: Colors.black),
+        ),
       ),
-      home: const MotivationScreen(),
+      darkTheme: ThemeData(
+        primarySwatch: Colors.blue,
+        brightness: Brightness.dark, // Thème sombre
+        textTheme: const TextTheme(
+          bodyText2: TextStyle(color: Colors.white),
+        ),
+      ),
+      themeMode: ThemeMode.system, // Basé sur les préférences système
+      onGenerateRoute: AppRouter.generateRoute, // Utilisation du routeur
+      initialRoute: '/motivation',
     );
   }
 }
@@ -33,15 +48,8 @@ class _MotivationScreenState extends State<MotivationScreen>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   int _currentQuoteIndex = 0;
-  final List<String> _motivationalQuotes = [
-    "Crois en toi, et tout devient possible.",
-    "Chaque jour est une nouvelle opportunité.",
-    "Le succès commence par un seul pas.",
-    "Ta seule limite, c'est toi.",
-    "Le futur appartient à ceux qui croient en leurs rêves.",
-    "La persévérance est la clé de la réussite.",
-    "N'abandonne jamais ce qui te fait briller.",
-  ];
+  final List<String> _motivationalQuotes =
+      motivationalQuotes; // Utilisation des citations importées
 
   @override
   void initState() {
@@ -118,7 +126,13 @@ class _MotivationScreenState extends State<MotivationScreen>
                     ),
                   ),
                 ),
-                const SizedBox(height: 60),
+                const SizedBox(height: 20),
+                LinearProgressIndicator(
+                  value: _controller.value,
+                  backgroundColor: Colors.white.withOpacity(0.3),
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                ),
+                const SizedBox(height: 40),
                 AnimatedSwitcher(
                   duration: const Duration(milliseconds: 500),
                   child: Text(
@@ -147,11 +161,70 @@ class _MotivationScreenState extends State<MotivationScreen>
                     fontSize: 14,
                   ),
                 ),
+                const SizedBox(height: 40),
+                ElevatedButton(
+                  onPressed: () {
+                    Navigator.pushNamed(
+                        context, '/quiz'); // Navigation vers la page de quiz
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.white,
+                    foregroundColor: Colors.indigo,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 24,
+                      vertical: 12,
+                    ),
+                  ),
+                  child: const Text(
+                    "Commencer un quiz",
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                ElevatedButton(
+                  onPressed: () {
+                    Navigator.pushNamed(
+                        context, '/game'); // Navigation vers la page de jeu
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.white,
+                    foregroundColor: Colors.green,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 24,
+                      vertical: 12,
+                    ),
+                  ),
+                  child: const Text(
+                    "Jouer à un jeu",
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
+                ),
               ],
             ),
           ),
         ),
       ),
     );
+  }
+}
+
+class AppRouter {
+  static Route<dynamic> generateRoute(RouteSettings settings) {
+    switch (settings.name) {
+      case '/motivation':
+        return MaterialPageRoute(builder: (_) => const MotivationScreen());
+      case '/quiz': // Route pour le quiz
+        return MaterialPageRoute(builder: (_) => const QuizScreen());
+      case '/game': // Nouvelle route pour le jeu
+        return MaterialPageRoute(builder: (_) => const GameScreen());
+      default:
+        return MaterialPageRoute(
+          builder: (_) => Scaffold(
+            body: Center(
+              child: Text('Page not found: ${settings.name}'),
+            ),
+          ),
+        );
+    }
   }
 }
