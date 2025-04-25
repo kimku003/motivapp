@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:math';
-import 'package:flutter/animation.dart';
-import 'package:confetti/confetti.dart'; // Ajoutez cette ligne dans pubspec.yaml
+import 'package:confetti/confetti.dart';
 
 class GameScreen extends StatefulWidget {
   const GameScreen({Key? key}) : super(key: key);
@@ -16,7 +15,7 @@ class _GameScreenState extends State<GameScreen>
   late int _secretNumber;
   int? _userGuess;
   int _attempts = 0;
-  String _message = 'Devinez entre 1 et 100';
+  String _message = 'Devinez entre 1 et 100 (7 essais max)';
   final TextEditingController _guessController = TextEditingController();
   bool _gameWon = false;
   bool _gameLost = false;
@@ -26,20 +25,23 @@ class _GameScreenState extends State<GameScreen>
   final ConfettiController _confettiController =
       ConfettiController(duration: const Duration(seconds: 5));
 
+  final List<String> passiveMessages = [
+    "🤷‍♂️ Peut-être que tu es meilleur en cuisine ?",
+    "🙃 Essaie encore, tu finiras par faire un heureux hasard.",
+    "😬 C’est pas grave, tout le monde ne peut pas être bon en chiffres.",
+    "🧠 Je t'aurais aidé, mais j'aime te voir galérer.",
+    "😅 C’est audacieux, comme choix.",
+    "🫣 Tu veux un indice ? Ah... c’est dommage, y'en a pas."
+  ];
+
   @override
   void initState() {
     super.initState();
     _startNewGame();
     _animationController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 500),
-    );
+        vsync: this, duration: const Duration(milliseconds: 500));
     _scaleAnimation = Tween<double>(begin: 0.8, end: 1.2).animate(
-      CurvedAnimation(
-        parent: _animationController,
-        curve: Curves.easeInOut,
-      ),
-    );
+        CurvedAnimation(parent: _animationController, curve: Curves.easeInOut));
   }
 
   @override
@@ -88,16 +90,46 @@ class _GameScreenState extends State<GameScreen>
       } else if (_attempts >= 7) {
         _message = '😢 Perdu ! Le nombre était $_secretNumber';
         _gameLost = true;
-      } else if (guess < _secretNumber) {
-        _message = '📈 Plus grand ! (Essai ${_attempts}/7)';
+        _confettiController.play(); // confettis ironiques rouges 😈
+        Future.delayed(const Duration(milliseconds: 500), _showLossDialog);
       } else {
-        _message = '📉 Plus petit ! (Essai ${_attempts}/7)';
+        bool useSarcasm = _random.nextBool();
+        if (useSarcasm) {
+          _message = passiveMessages[_random.nextInt(passiveMessages.length)];
+        } else {
+          _message = guess < _secretNumber
+              ? '📈 Plus grand ! (Essai $_attempts/7)'
+              : '📉 Plus petit ! (Essai $_attempts/7)';
+        }
       }
     });
   }
 
+  void _showLossDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("Encore raté..."),
+        content: const Text("Mais tu progresses... probablement."),
+        actions: [
+          TextButton(
+            child: const Text("Je suppose que je réessaie..."),
+            onPressed: () {
+              Navigator.pop(context);
+              _startNewGame();
+            },
+          )
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    Color backgroundColor = (_attempts >= 3 && !_gameWon && !_gameLost)
+        ? Colors.grey.shade300
+        : Colors.blue.shade100;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Nombre Mystère'),
@@ -118,7 +150,7 @@ class _GameScreenState extends State<GameScreen>
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
                 colors: [
-                  Colors.blue.shade100,
+                  backgroundColor,
                   Colors.purple.shade100,
                 ],
               ),
@@ -128,7 +160,6 @@ class _GameScreenState extends State<GameScreen>
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  // Indicateur visuel animé
                   ScaleTransition(
                     scale: _scaleAnimation,
                     child: Container(
@@ -166,10 +197,7 @@ class _GameScreenState extends State<GameScreen>
                       ),
                     ),
                   ),
-
                   const SizedBox(height: 30),
-
-                  // Message du jeu avec emoji
                   Text(
                     _message,
                     style: const TextStyle(
@@ -178,10 +206,7 @@ class _GameScreenState extends State<GameScreen>
                     ),
                     textAlign: TextAlign.center,
                   ),
-
                   const SizedBox(height: 30),
-
-                  // Champ de saisie (caché si partie terminée)
                   if (!_gameWon && !_gameLost) ...[
                     TextField(
                       controller: _guessController,
@@ -198,10 +223,7 @@ class _GameScreenState extends State<GameScreen>
                       ),
                       onSubmitted: (_) => _checkGuess(),
                     ),
-
                     const SizedBox(height: 20),
-
-                    // Bouton de validation
                     ElevatedButton(
                       onPressed: _checkGuess,
                       style: ElevatedButton.styleFrom(
@@ -222,7 +244,6 @@ class _GameScreenState extends State<GameScreen>
                       ),
                     ),
                   ] else ...[
-                    // Bouton de nouvelle partie après fin de jeu
                     ElevatedButton(
                       onPressed: _startNewGame,
                       style: ElevatedButton.styleFrom(
@@ -243,68 +264,24 @@ class _GameScreenState extends State<GameScreen>
                       ),
                     ),
                   ],
-
-                  const SizedBox(height: 30),
-
-                  // Compteur d'essais
-                  Text(
-                    'Essais: $_attempts/7',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: _attempts >= 5 ? Colors.red : Colors.black,
-                    ),
-                  ),
-
-                  const SizedBox(height: 15),
-
-                  // Historique des tentatives
-                  if (_guessHistory.isNotEmpty) ...[
-                    const Text(
-                      'Vos tentatives :',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontStyle: FontStyle.italic,
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: _guessHistory.map((guess) {
-                        return Chip(
-                          label: Text('$guess'),
-                          avatar: Text(
-                            guess == _secretNumber
-                                ? '🎯'
-                                : guess > _secretNumber
-                                    ? '⬇️'
-                                    : '⬆️',
-                          ),
-                          backgroundColor: guess == _secretNumber
-                              ? Colors.green.shade100
-                              : Colors.grey.shade200,
-                        );
-                      }).toList(),
-                    ),
-                  ],
                 ],
               ),
             ),
           ),
-
-          // Confetti pour la victoire
-          ConfettiWidget(
-            confettiController: _confettiController,
-            blastDirectionality: BlastDirectionality.explosive,
-            shouldLoop: false,
-            colors: const [
-              Colors.green,
-              Colors.blue,
-              Colors.pink,
-              Colors.orange,
-              Colors.purple,
-            ],
+          Align(
+            alignment: Alignment.topCenter,
+            child: ConfettiWidget(
+              confettiController: _confettiController,
+              blastDirectionality: BlastDirectionality.explosive,
+              emissionFrequency: 0.4,
+              numberOfParticles: 30,
+              maxBlastForce: 15,
+              minBlastForce: 5,
+              gravity: 0.3,
+              colors: _gameWon
+                  ? [Colors.green, Colors.blue]
+                  : [Colors.red, Colors.black],
+            ),
           ),
         ],
       ),

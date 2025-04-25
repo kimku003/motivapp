@@ -116,6 +116,8 @@ class _MotivationScreenState extends State<MotivationScreen>
                 ),
                 const SizedBox(height: 40),
                 _buildNavigationButtons(),
+                const SizedBox(height: 20),
+                _buildModeToggle(), // Ajouter un bouton ou un switch pour changer de mode
               ],
             ),
           ),
@@ -195,6 +197,29 @@ class _MotivationScreenState extends State<MotivationScreen>
         _buildNavigationButton("Jouer à un jeu", '/game', Colors.green),
         const SizedBox(height: 20),
         _buildNavigationButton("Jouer au second jeu", '/game2', Colors.orange),
+      ],
+    );
+  }
+
+  // Ajouter un bouton ou un switch pour changer de mode
+  Widget _buildModeToggle() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Text(
+          _quoteMode == QuoteMode.motivation ? "Mode Motivation" : "Mode Spicy",
+          style: const TextStyle(
+              color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(width: 20),
+        IconButton(
+          onPressed: _toggleQuoteMode,
+          icon: Icon(
+            _quoteMode == QuoteMode.motivation ? Icons.star : Icons.warning,
+            color: Colors.white,
+            size: 30,
+          ),
+        ),
       ],
     );
   }
