@@ -12,14 +12,14 @@ class _QuestionsScreenState extends State<QuestionsScreen> {
     {
       'question': "Comment ça va ?",
       'answers': [
-        {'text': "Super bien !", 'message': "Wow, quel optimisme contagieux !"},
+        {'text': "Super bien !", 'message': "Tu mens😒!"},
         {
           'text': "Ça pourrait aller mieux",
-          'message': "Un peu de narcissisme vous ferait du bien !"
+          'message': "Si tu étais en couple et fidèle dans ta relation !"
         },
         {
           'text': "Je déteste ce quiz",
-          'message': "Votre franchise est... dérangeante."
+          'message': "Qui t'a même appelé ici? Tchrr😒"
         },
       ],
     },
@@ -27,20 +27,17 @@ class _QuestionsScreenState extends State<QuestionsScreen> {
       'question': "Quelle est votre couleur préférée ?",
       'answers': [
         {'text': "Bleu", 'message': "Comme le ciel parfait que vous méritez !"},
-        {
-          'text': "Rouge",
-          'message': "Couleur puissante pour une personne exceptionnelle !"
-        },
+        {'text': "Rouge", 'message': "Ouais, toujours dans la violence....!"},
         {
           'text': "Noir",
-          'message': "Profond et mystérieux, comme votre âme sublime."
+          'message': "Profond et mystérieux, parce que tu n'aimes pas te laver."
         },
       ],
     },
     {
       'question': "Quel est votre plat préféré ?",
       'answers': [
-        {'text': "Pizza", 'message': "Un choix divin pour un palais raffiné !"},
+        {'text': "Pizza", 'message': "Donc c'est pas alloco ? !"},
         {
           'text': "Sushi",
           'message': "Seuls les êtres supérieurs apprécient cette délicatesse."
@@ -48,7 +45,7 @@ class _QuestionsScreenState extends State<QuestionsScreen> {
         {
           'text': "Je ne mange pas",
           'message':
-              "Votre discipline est presque aussi impressionnante que votre beauté."
+              "C'est vous, lorsqu'il y a un peu de vent seulement vous êtes emportés."
         },
       ],
     },
