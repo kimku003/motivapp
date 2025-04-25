@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:vibration/vibration.dart'; // Pour faire vibrer, ajoute dans pubspec.yaml
+import '../../data/questions.dart'; // Assure-toi que tes questions sont bien là
 
 class QuestionsScreen extends StatefulWidget {
   const QuestionsScreen({Key? key}) : super(key: key);
@@ -8,61 +10,47 @@ class QuestionsScreen extends StatefulWidget {
 }
 
 class _QuestionsScreenState extends State<QuestionsScreen> {
-  final List<Map<String, dynamic>> _questions = [
-    {
-      'question': "Comment ça va ?",
-      'answers': [
-        {'text': "Super bien !", 'message': "Tu mens😒!"},
-        {
-          'text': "Ça pourrait aller mieux",
-          'message': "Si tu étais en couple et fidèle dans ta relation !"
-        },
-        {
-          'text': "Je déteste ce quiz",
-          'message': "Qui t'a même appelé ici? Tchrr😒"
-        },
-      ],
-    },
-    {
-      'question': "Quelle est votre couleur préférée ?",
-      'answers': [
-        {'text': "Bleu", 'message': "Comme le ciel parfait que vous méritez !"},
-        {'text': "Rouge", 'message': "Ouais, toujours dans la violence....!"},
-        {
-          'text': "Noir",
-          'message': "Profond et mystérieux, parce que tu n'aimes pas te laver."
-        },
-      ],
-    },
-    {
-      'question': "Quel est votre plat préféré ?",
-      'answers': [
-        {'text': "Pizza", 'message': "Donc c'est pas alloco ? !"},
-        {
-          'text': "Sushi",
-          'message': "Seuls les êtres supérieurs apprécient cette délicatesse."
-        },
-        {
-          'text': "Je ne mange pas",
-          'message':
-              "C'est vous, lorsqu'il y a un peu de vent seulement vous êtes emportés."
-        },
-      ],
-    },
-  ];
-
+  late List<Map<String, dynamic>> _shuffledQuestions;
   int _currentQuestionIndex = 0;
   int? _selectedAnswerIndex;
   String? _feedbackMessage;
   bool _showFeedback = false;
+  int _roastCount = 0;
+  bool _infiniteMode =
+      true; // Change à false si tu veux revenir à l'accueil à la fin
 
-  void _selectAnswer(int index) {
+  @override
+  void initState() {
+    super.initState();
+    // Créer une copie modifiable des questions et des réponses
+    _shuffledQuestions = List<Map<String, dynamic>>.from(questions)
+        .map((q) => {
+              'question': q['question'],
+              'answers': List<Map<String, dynamic>>.from(q['answers']),
+            })
+        .toList();
+    _shuffledQuestions.shuffle();
+    for (var q in _shuffledQuestions) {
+      (q['answers'] as List).shuffle(); // Shuffle les réponses
+    }
+    validateQuestions(_shuffledQuestions);
+  }
+
+  void _selectAnswer(int index) async {
+    final message =
+        _shuffledQuestions[_currentQuestionIndex]['answers'][index]['message'];
+
     setState(() {
       _selectedAnswerIndex = index;
-      _feedbackMessage =
-          _questions[_currentQuestionIndex]['answers'][index]['message'];
+      _feedbackMessage = message;
       _showFeedback = true;
+      _roastCount++;
     });
+
+    // Petite vibration pour accentuer le roast 😈
+    if (await Vibration.hasVibrator() ?? false) {
+      Vibration.vibrate(duration: 150);
+    }
   }
 
   void _nextQuestion() {
@@ -70,22 +58,24 @@ class _QuestionsScreenState extends State<QuestionsScreen> {
       _showFeedback = false;
       _selectedAnswerIndex = null;
 
-      if (_currentQuestionIndex < _questions.length - 1) {
+      if (_currentQuestionIndex < _shuffledQuestions.length - 1) {
         _currentQuestionIndex++;
+      } else if (_infiniteMode) {
+        _shuffledQuestions.shuffle();
+        _currentQuestionIndex = 0;
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: const Text("Quiz terminé - Vous êtes extraordinaire !"),
-            backgroundColor: Colors.green,
-            duration: const Duration(seconds: 2),
+            content: Text("Quiz terminé 🔥 Roasts encaissés: $_roastCount"),
+            backgroundColor: Colors.redAccent,
             behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 3),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(10),
             ),
           ),
         );
-        // Option: Revenir à l'écran d'accueil après un délai
-        Future.delayed(const Duration(seconds: 2), () {
+        Future.delayed(const Duration(seconds: 3), () {
           Navigator.pop(context);
         });
       }
@@ -94,35 +84,44 @@ class _QuestionsScreenState extends State<QuestionsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final current = _shuffledQuestions[_currentQuestionIndex];
+
     return Scaffold(
       appBar: AppBar(
-        title:
-            Text('Question ${_currentQuestionIndex + 1}/${_questions.length}'),
+        title: Text(
+            '🔥 Roast ${_currentQuestionIndex + 1}/${_shuffledQuestions.length}'),
         centerTitle: true,
-        elevation: 2,
+        elevation: 3,
+        actions: [
+          IconButton(
+            icon: Icon(_infiniteMode ? Icons.loop : Icons.stop),
+            tooltip: _infiniteMode ? 'Mode Infini Activé' : 'Mode Normal',
+            onPressed: () {
+              setState(() {
+                _infiniteMode = !_infiniteMode;
+              });
+            },
+          )
+        ],
       ),
       body: Padding(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.all(18.0),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             // Question
             Text(
-              _questions[_currentQuestionIndex]['question'],
+              current['question'],
               style: Theme.of(context).textTheme.headline4?.copyWith(
                     fontWeight: FontWeight.bold,
                     color: Colors.blue[800],
                   ),
               textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 40),
+            const SizedBox(height: 30),
 
             // Réponses
-            ..._questions[_currentQuestionIndex]['answers']
-                .asMap()
-                .entries
-                .map((entry) {
+            ...current['answers'].asMap().entries.map((entry) {
               int idx = entry.key;
               var answer = entry.value;
 
@@ -131,13 +130,13 @@ class _QuestionsScreenState extends State<QuestionsScreen> {
                 child: ElevatedButton(
                   onPressed: () => _selectAnswer(idx),
                   style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 16),
                     backgroundColor: _selectedAnswerIndex == idx
                         ? Colors.blue[800]
-                        : Colors.grey[200],
+                        : Colors.grey[300],
                     foregroundColor: _selectedAnswerIndex == idx
                         ? Colors.white
                         : Colors.black,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
@@ -155,41 +154,38 @@ class _QuestionsScreenState extends State<QuestionsScreen> {
               );
             }).toList(),
 
-            // Feedback narcissique
+            // Feedback
             if (_showFeedback) ...[
-              const SizedBox(height: 20),
+              const SizedBox(height: 25),
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
                   color: Colors.amber[50],
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.amber),
+                  border: Border.all(color: Colors.orangeAccent),
+                  borderRadius: BorderRadius.circular(10),
                 ),
                 child: Text(
-                  _feedbackMessage!,
+                  _feedbackMessage ?? "",
                   style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                         fontStyle: FontStyle.italic,
-                        color: Colors.orange[800],
+                        color: Colors.orange[900],
                       ),
                   textAlign: TextAlign.center,
                 ),
               ),
-            ],
-
-            // Bouton Suivant
-            if (_showFeedback) ...[
-              const SizedBox(height: 30),
+              const SizedBox(height: 20),
               ElevatedButton(
                 onPressed: _nextQuestion,
                 style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.green,
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  backgroundColor: Colors.green,
                 ),
                 child: Text(
-                  _currentQuestionIndex < _questions.length - 1
+                  _currentQuestionIndex < _shuffledQuestions.length - 1 ||
+                          _infiniteMode
                       ? 'QUESTION SUIVANTE'
                       : 'TERMINER LE QUIZ',
                   style: const TextStyle(
@@ -204,5 +200,29 @@ class _QuestionsScreenState extends State<QuestionsScreen> {
         ),
       ),
     );
+  }
+
+  void validateQuestions(List<Map<String, dynamic>> questions) {
+    for (int i = 0; i < questions.length; i++) {
+      final q = questions[i];
+      final answers = q['answers'] as List;
+
+      if (answers.length < 2) {
+        debugPrint("❌ Question ${i + 1} n'a pas assez de réponses.");
+      }
+
+      for (int j = 0; j < answers.length; j++) {
+        final a = answers[j];
+        if (a['text'] == null || a['text'].toString().trim().isEmpty) {
+          debugPrint(
+              "❌ Réponse ${j + 1} de la question ${i + 1} a un texte vide.");
+        }
+        if (a['message'] == null || a['message'].toString().trim().isEmpty) {
+          debugPrint(
+              "❌ Réponse '${a['text']}' de la question ${i + 1} n'a pas de roast.");
+        }
+      }
+    }
+    debugPrint("✅ Validation terminée.");
   }
 }
