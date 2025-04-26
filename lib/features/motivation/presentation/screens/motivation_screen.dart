@@ -3,7 +3,7 @@ import 'dart:math' as math;
 import '../../data/quotes.dart'; // Import des citations
 
 class MotivationScreen extends StatefulWidget {
-  const MotivationScreen({Key? key}) : super(key: key);
+  const MotivationScreen({super.key});
 
   @override
   State<MotivationScreen> createState() => _MotivationScreenState();
@@ -109,7 +109,7 @@ class _MotivationScreenState extends State<MotivationScreen>
                 LinearProgressIndicator(
                   value: _controller.value,
                   backgroundColor: Colors.white.withOpacity(0.3),
-                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                  valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
                 ),
                 const SizedBox(height: 40),
 

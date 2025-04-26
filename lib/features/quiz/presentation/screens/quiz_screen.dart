@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'questions_screen.dart'; // Import de l'écran des questions
 
 class QuizScreen extends StatelessWidget {
-  const QuizScreen({Key? key}) : super(key: key);
+  const QuizScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -57,7 +57,7 @@ class QuizScreen extends StatelessWidget {
       children: [
         Text(
           'Bienvenue au Quiz !',
-          style: Theme.of(context).textTheme.headline4?.copyWith(
+          style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                 fontWeight: FontWeight.bold,
                 color: Colors.blue[800],
               ),
@@ -66,7 +66,7 @@ class QuizScreen extends StatelessWidget {
         const SizedBox(height: 16),
         Text(
           'Testez vos connaissances avec 10 questions variées',
-          style: Theme.of(context).textTheme.subtitle1?.copyWith(
+          style: Theme.of(context).textTheme.titleMedium?.copyWith(
                 color: Colors.grey[700],
               ),
           textAlign: TextAlign.center,

@@ -10,7 +10,7 @@ void main() {
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({Key? key}) : super(key: key);
+  const MyApp({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -21,14 +21,14 @@ class MyApp extends StatelessWidget {
         primarySwatch: Colors.blue,
         brightness: Brightness.light,
         textTheme: const TextTheme(
-          bodyText2: TextStyle(color: Colors.black),
+          bodyMedium: TextStyle(color: Colors.black),
         ),
       ),
       darkTheme: ThemeData(
         primarySwatch: Colors.blue,
         brightness: Brightness.dark,
         textTheme: const TextTheme(
-          bodyText2: TextStyle(color: Colors.white),
+          bodyMedium: TextStyle(color: Colors.white),
         ),
       ),
       themeMode: ThemeMode.system,
@@ -39,7 +39,7 @@ class MyApp extends StatelessWidget {
 }
 
 class MotivationScreen extends StatefulWidget {
-  const MotivationScreen({Key? key}) : super(key: key);
+  const MotivationScreen({super.key});
 
   @override
   State<MotivationScreen> createState() => _MotivationScreenState();
@@ -105,7 +105,7 @@ class _MotivationScreenState extends State<MotivationScreen>
                 LinearProgressIndicator(
                   value: _controller.value,
                   backgroundColor: Colors.white.withOpacity(0.3),
-                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                  valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
                 ),
                 const SizedBox(height: 40),
                 _buildQuoteText(),

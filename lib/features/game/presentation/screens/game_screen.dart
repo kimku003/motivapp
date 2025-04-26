@@ -3,7 +3,7 @@ import 'dart:math';
 import 'package:confetti/confetti.dart';
 
 class GameScreen extends StatefulWidget {
-  const GameScreen({Key? key}) : super(key: key);
+  const GameScreen({super.key});
 
   @override
   State<GameScreen> createState() => _GameScreenState();

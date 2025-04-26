@@ -1,0 +1,1 @@
+/home/kimku/app_motivation/build/app/intermediates/cxx/RelWithDebInfo/402655j3/obj/arm64-v8a

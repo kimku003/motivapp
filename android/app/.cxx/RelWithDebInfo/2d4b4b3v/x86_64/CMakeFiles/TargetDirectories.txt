@@ -1,0 +1,2 @@
+/home/kimku/app_motivation/android/app/.cxx/RelWithDebInfo/2d4b4b3v/x86_64/CMakeFiles/rebuild_cache.dir
+/home/kimku/app_motivation/android/app/.cxx/RelWithDebInfo/2d4b4b3v/x86_64/CMakeFiles/edit_cache.dir

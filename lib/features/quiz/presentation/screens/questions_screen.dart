@@ -3,7 +3,7 @@ import 'package:vibration/vibration.dart'; // Pour faire vibrer, ajoute dans pub
 import '../../data/questions.dart'; // Assure-toi que tes questions sont bien là
 
 class QuestionsScreen extends StatefulWidget {
-  const QuestionsScreen({Key? key}) : super(key: key);
+  const QuestionsScreen({super.key});
 
   @override
   State<QuestionsScreen> createState() => _QuestionsScreenState();
@@ -112,7 +112,7 @@ class _QuestionsScreenState extends State<QuestionsScreen> {
             // Question
             Text(
               current['question'],
-              style: Theme.of(context).textTheme.headline4?.copyWith(
+              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                     fontWeight: FontWeight.bold,
                     color: Colors.blue[800],
                   ),
