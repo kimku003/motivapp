@@ -3,6 +3,195 @@ import 'dart:math';
 import 'package:confetti/confetti.dart';
 import 'package:vector_math/vector_math_64.dart' as vector;
 
+// Ajoutez ces classes avant votre classe Game2Screen
+
+class DistortionEffect extends StatefulWidget {
+  final Widget child;
+  final bool active;
+
+  const DistortionEffect({
+    super.key,
+    required this.child,
+    required this.active,
+  });
+
+  @override
+  State<DistortionEffect> createState() => _DistortionEffectState();
+}
+
+class _DistortionEffectState extends State<DistortionEffect>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 800),
+    );
+  }
+
+  @override
+  void didUpdateWidget(DistortionEffect oldWidget) {
+    if (widget.active != oldWidget.active && widget.active) {
+      _controller.forward(from: 0);
+    }
+    super.didUpdateWidget(oldWidget);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, child) {
+        final double distortion = _controller.value * 0.1;
+        return Transform(
+          transform: Matrix4.identity()
+            ..setEntry(3, 2, 0.001)
+            ..rotateX(0.01 * sin(_controller.value * pi * 2))
+            ..rotateY(0.01 * cos(_controller.value * pi * 2))
+            ..scale(1.0 + distortion),
+          child: child,
+        );
+      },
+      child: widget.child,
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+}
+
+class GlitchEffect extends StatefulWidget {
+  final Widget child;
+  final bool active;
+
+  const GlitchEffect({
+    super.key,
+    required this.child,
+    required this.active,
+  });
+
+  @override
+  State<GlitchEffect> createState() => _GlitchEffectState();
+}
+
+class _GlitchEffectState extends State<GlitchEffect>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  final Random _random = Random();
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 200),
+    );
+  }
+
+  @override
+  void didUpdateWidget(GlitchEffect oldWidget) {
+    if (widget.active != oldWidget.active && widget.active) {
+      _controller.repeat(reverse: true);
+      Future.delayed(const Duration(seconds: 1), () {
+        if (mounted) _controller.stop();
+      });
+    }
+    super.didUpdateWidget(oldWidget);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, child) {
+        final offsetX = _random.nextDouble() * 4 - 2;
+        final offsetY = _random.nextDouble() * 4 - 2;
+        return Transform(
+          transform: Matrix4.identity()..translate(offsetX, offsetY),
+          child: Opacity(
+            opacity: 0.7 + _random.nextDouble() * 0.3,
+            child: widget.child,
+          ),
+        );
+      },
+      child: widget.child,
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+}
+
+class EmojiReaction extends StatefulWidget {
+  final String emoji;
+  final bool active;
+
+  const EmojiReaction({
+    super.key,
+    required this.emoji,
+    required this.active,
+  });
+
+  @override
+  State<EmojiReaction> createState() => _EmojiReactionState();
+}
+
+class _EmojiReactionState extends State<EmojiReaction>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 500),
+    );
+  }
+
+  @override
+  void didUpdateWidget(EmojiReaction oldWidget) {
+    if (widget.active != oldWidget.active && widget.active) {
+      _controller.forward(from: 0);
+    }
+    super.didUpdateWidget(oldWidget);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, child) {
+        return Transform.scale(
+          scale: 1.0 + _controller.value * 0.5,
+          child: Opacity(
+            opacity: _controller.status == AnimationStatus.forward ? 1.0 : 0.0,
+            child: Text(
+              widget.emoji,
+              style: const TextStyle(fontSize: 40),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+}
+
 class Game2Screen extends StatefulWidget {
   const Game2Screen({super.key});
 
@@ -12,6 +201,17 @@ class Game2Screen extends StatefulWidget {
 
 class _Game2ScreenState extends State<Game2Screen>
     with SingleTickerProviderStateMixin {
+  Widget _buildPlaceholderScreen(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Game 2 Screen'),
+      ),
+      body: const Center(
+        child: Text('Game 2 Screen Content'),
+      ),
+    );
+  }
+
   final List<Map<String, dynamic>> _questions = [
     {
       'question': "Quel est l'animal le plus rapide ?",
@@ -55,6 +255,11 @@ class _Game2ScreenState extends State<Game2Screen>
   bool _showFeedback = false;
   bool _showFakeSuccess = false;
   bool _showCorrectAnswer = false;
+  bool _showDistortion = false;
+  bool _showGlitch = false;
+  bool _showEmoji = false;
+  String _currentEmoji = "😂";
+  final List<String> _emojiList = ["😭", "😂", "😅", "🤦", "🤷", "🙄", "😤"];
   late AnimationController _animationController;
   late ConfettiController _confettiController;
   late ConfettiController _fakeConfettiController;
@@ -63,9 +268,8 @@ class _Game2ScreenState extends State<Game2Screen>
   bool _isButtonRotating = false;
   double _rotationAngle = 0;
   bool _isButtonShaking = false;
-  final double _shakeOffset = 0;
   bool _showHint = false;
-  bool _isAnswerCorrect = false;
+  // Removed unused field '_isAnswerCorrect'
   double _opacity = 1.0;
   final List<String> _sarcasticComments = [
     "Bravo... presque!",
@@ -142,12 +346,28 @@ class _Game2ScreenState extends State<Game2Screen>
       if (_random.nextDouble() < 0.15) {
         _showFakeCongratulations();
       } else {
-        _moveCorrectAnswer();
+        setState(() {
+          _showDistortion = true;
+          _showGlitch = true;
+          _showEmoji = true;
+          _currentEmoji = _emojiList[_random.nextInt(_emojiList.length)];
+          _showCorrectAnswer = true;
+          _moveCorrectAnswer();
+        });
+
+        // Réinitialiser après l'animation
+        Future.delayed(const Duration(seconds: 1), () {
+          if (mounted) {
+            setState(() {
+              _showDistortion = false;
+              _showGlitch = false;
+              _showEmoji = false;
+            });
+          }
+        });
       }
-      _isAnswerCorrect = true;
     } else {
       _showSarcasticFeedback();
-      _isAnswerCorrect = false;
 
       // 30% de chance que le bouton se mette à trembler
       if (_random.nextDouble() < 0.3) {
@@ -411,32 +631,56 @@ class _Game2ScreenState extends State<Game2Screen>
                                     answer['isCorrect'] && _isButtonRotating
                                         ? _rotationAngle
                                         : 0),
-                              child: AnimatedOpacity(
-                                duration: const Duration(milliseconds: 500),
-                                opacity:
-                                    answer['isCorrect'] && _showCorrectAnswer
+                              child: DistortionEffect(
+                                active: !answer['isCorrect'] && _showDistortion,
+                                child: GlitchEffect(
+                                  active: !answer['isCorrect'] && _showGlitch,
+                                  child: AnimatedOpacity(
+                                    duration: const Duration(milliseconds: 500),
+                                    opacity: answer['isCorrect'] &&
+                                            _showCorrectAnswer
                                         ? 0.5
                                         : _opacity,
-                                child: AnimatedScale(
-                                  duration: const Duration(milliseconds: 300),
-                                  scale:
-                                      answer['isCorrect'] ? _buttonScale : 1.0,
-                                  child: ElevatedButton(
-                                    onPressed: () =>
-                                        _onAnswerTap(answer['isCorrect']),
-                                    style: _buttonStyle(
-                                      answer['isCorrect']
-                                          ? Colors.blue
-                                          : Colors.blue,
-                                      answer['isCorrect'] && _showCorrectAnswer,
-                                    ),
-                                    child: Padding(
-                                      padding: const EdgeInsets.all(12.0),
-                                      child: Text(
-                                        answer['text'],
-                                        style: const TextStyle(
-                                          fontSize: 18,
-                                          color: Colors.white,
+                                    child: AnimatedScale(
+                                      duration:
+                                          const Duration(milliseconds: 300),
+                                      scale: answer['isCorrect']
+                                          ? _buttonScale
+                                          : 1.0,
+                                      child: ElevatedButton(
+                                        onPressed: () =>
+                                            _onAnswerTap(answer['isCorrect']),
+                                        style: _buttonStyle(
+                                          answer['isCorrect']
+                                              ? Colors.blue
+                                              : Colors.blue,
+                                          answer['isCorrect'] &&
+                                              _showCorrectAnswer,
+                                        ),
+                                        child: Stack(
+                                          alignment: Alignment.center,
+                                          children: [
+                                            Padding(
+                                              padding:
+                                                  const EdgeInsets.all(12.0),
+                                              child: Text(
+                                                answer['text'],
+                                                style: const TextStyle(
+                                                  fontSize: 18,
+                                                  color: Colors.white,
+                                                ),
+                                              ),
+                                            ),
+                                            if (!answer['isCorrect'] &&
+                                                _showEmoji)
+                                              Positioned(
+                                                top: -20,
+                                                child: EmojiReaction(
+                                                  emoji: _currentEmoji,
+                                                  active: _showEmoji,
+                                                ),
+                                              ),
+                                          ],
                                         ),
                                       ),
                                     ),
@@ -615,6 +859,11 @@ class _Game2ScreenState extends State<Game2Screen>
       ),
       shadowColor: Colors.black.withOpacity(0.4),
       elevation: 8,
+      // Ajoutez cette transformation pour la perspective 3D
+      foregroundColor: Colors.white,
+      side: BorderSide(color: Colors.white.withOpacity(0.2), width: 2),
+      // Effet de profondeur
+      surfaceTintColor: Colors.white.withOpacity(0.1),
     );
   }
 
