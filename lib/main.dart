@@ -83,8 +83,23 @@ class _MotivationScreenState extends State<MotivationScreen>
     });
   }
 
+  Color _getBackgroundColor() {
+    final hour = DateTime.now().hour;
+    if (hour < 6 || hour >= 18) {
+      // Nuit
+      return Colors.indigo.shade900;
+    } else if (hour < 12) {
+      // Matin
+      return Colors.blue.shade800;
+    } else {
+      // Après-midi
+      return Colors.purple.shade700;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final backgroundColor = _getBackgroundColor();
     return Scaffold(
       body: GestureDetector(
         onTap: _changeQuote,
@@ -93,32 +108,124 @@ class _MotivationScreenState extends State<MotivationScreen>
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
-              colors: [Colors.indigo.shade900, Colors.purple.shade900],
+              colors: [
+                _getBackgroundColor(),
+                Color.lerp(
+                  _getBackgroundColor(),
+                  Colors.deepPurple,
+                  0.7,
+                )!,
+              ],
             ),
           ),
-          child: Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                _buildRotatingIcon(),
-                const SizedBox(height: 20),
-                LinearProgressIndicator(
-                  value: _controller.value,
-                  backgroundColor: Colors.white.withOpacity(0.3),
-                  valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
+          child: Stack(
+            children: [
+              // Particules flottantes en arrière-plan
+              Positioned.fill(
+                child: CustomPaint(
+                  painter: _ParticlesPainter(controller: _controller),
                 ),
-                const SizedBox(height: 40),
-                _buildQuoteText(),
-                const SizedBox(height: 40),
-                const Text(
-                  "Touchez l'écran pour changer de citation",
-                  style: TextStyle(color: Colors.white, fontSize: 14),
+              ),
+              SafeArea(
+                child: SingleChildScrollView(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const SizedBox(height: 40),
+                        _buildRotatingIcon(),
+                        const SizedBox(height: 30),
+                        _buildQuoteCard(),
+                        const SizedBox(height: 20),
+                        _buildProgressIndicator(),
+                        const SizedBox(height: 20),
+                        _buildNavigationButtons(),
+                        const SizedBox(height: 20),
+                        _buildModeToggle(),
+                        const SizedBox(height: 40),
+                      ],
+                    ),
+                  ),
                 ),
-                const SizedBox(height: 40),
-                _buildNavigationButtons(),
-                const SizedBox(height: 20),
-                _buildModeToggle(), // Ajouter un bouton ou un switch pour changer de mode
-              ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildProgressIndicator() {
+    return SizedBox(
+      width: 200,
+      child: TweenAnimationBuilder(
+        tween: Tween(begin: 0.0, end: 1.0),
+        duration: const Duration(seconds: 10),
+        onEnd: _changeQuote,
+        builder: (BuildContext context, double value, Widget? child) {
+          return ClipRRect(
+            borderRadius: BorderRadius.circular(10),
+            child: LinearProgressIndicator(
+              value: value,
+              backgroundColor: Colors.white.withOpacity(0.2),
+              valueColor: AlwaysStoppedAnimation<Color>(
+                _quoteMode == QuoteMode.motivation
+                    ? Colors.blueAccent
+                    : Colors.redAccent,
+              ),
+              minHeight: 10,
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+// Nouveau widget pour la carte de citation
+  Widget _buildQuoteCard() {
+    return Card(
+      elevation: 10,
+      color: Colors.white.withOpacity(0.15),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20),
+        side: BorderSide(color: Colors.white.withOpacity(0.5), width: 1),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxWidth: MediaQuery.of(context).size.width * 0.8,
+          ),
+          child: AnimatedSwitcher(
+            duration: const Duration(milliseconds: 800),
+            transitionBuilder: (Widget child, Animation<double> animation) {
+              return FadeTransition(
+                opacity: animation,
+                child: SlideTransition(
+                  position: Tween<Offset>(
+                          begin: const Offset(0, 0.5), end: Offset.zero)
+                      .animate(animation),
+                  child: child,
+                ),
+              );
+            },
+            child: Text(
+              _currentQuotes[_currentQuoteIndex],
+              key: ValueKey<int>(_currentQuoteIndex),
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                shadows: [
+                  Shadow(
+                    blurRadius: 5.0,
+                    color: Colors.black.withOpacity(0.5),
+                    offset: const Offset(1, 1),
+                  ),
+                ],
+              ),
+              textAlign: TextAlign.center,
             ),
           ),
         ),
@@ -132,24 +239,42 @@ class _MotivationScreenState extends State<MotivationScreen>
       builder: (_, child) {
         return Transform.rotate(
           angle: _controller.value * 2 * math.pi,
-          child: child,
+          child: Transform.scale(
+            scale: 1 + math.sin(_controller.value * math.pi * 2) * 0.1,
+            child: child,
+          ),
         );
       },
       child: Container(
         width: 150,
         height: 150,
         decoration: BoxDecoration(
-          color: Colors.transparent,
+          gradient: RadialGradient(
+            colors: [
+              Colors.white.withOpacity(0.8),
+              Colors.transparent,
+            ],
+            stops: const [0.1, 1.0],
+          ),
           shape: BoxShape.circle,
-          border: Border.all(color: Colors.white, width: 4),
-          boxShadow: [
-            BoxShadow(
-                color: Colors.white.withOpacity(0.5),
-                blurRadius: 15,
-                spreadRadius: 5),
-          ],
         ),
-        child: const Icon(Icons.star, color: Colors.white, size: 80),
+        child: ShaderMask(
+          shaderCallback: (Rect bounds) {
+            return LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                Colors.blueAccent,
+                Colors.purpleAccent,
+              ],
+            ).createShader(bounds);
+          },
+          child: const Icon(
+            Icons.auto_awesome,
+            color: Colors.white,
+            size: 80,
+          ),
+        ),
       ),
     );
   }
@@ -173,20 +298,71 @@ class _MotivationScreenState extends State<MotivationScreen>
     );
   }
 
-  ElevatedButton _buildNavigationButton(
-      String text, String routeName, Color color) {
-    return ElevatedButton(
-      onPressed: () {
-        Navigator.pushNamed(context, routeName);
-      },
-      style: ElevatedButton.styleFrom(
-        backgroundColor: Colors.white,
-        foregroundColor: color,
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+  Widget _buildNavigationButton(String text, String routeName, Color color) {
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 300),
+      margin: const EdgeInsets.symmetric(vertical: 8),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(30),
+        boxShadow: [
+          BoxShadow(
+            color: color.withOpacity(0.4),
+            blurRadius: 10,
+            spreadRadius: 2,
+            offset: const Offset(0, 4),
+          ),
+        ],
+        gradient: LinearGradient(
+          colors: [color, Color.lerp(color, Colors.white, 0.2)!],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
       ),
-      child: Text(text,
-          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+      child: ElevatedButton(
+        onPressed: () {
+          Navigator.pushNamed(context, routeName);
+        },
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.transparent,
+          shadowColor: Colors.transparent,
+          padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(30),
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              _getIconForRoute(routeName),
+              color: Colors.white,
+            ),
+            const SizedBox(width: 10),
+            Text(
+              text,
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
+  }
+
+  IconData _getIconForRoute(String routeName) {
+    switch (routeName) {
+      case '/quiz':
+        return Icons.quiz;
+      case '/game':
+        return Icons.gamepad;
+      case '/game2':
+        return Icons.sports_esports;
+      default:
+        return Icons.star;
+    }
   }
 
   Column _buildNavigationButtons() {
@@ -201,28 +377,83 @@ class _MotivationScreenState extends State<MotivationScreen>
     );
   }
 
-  // Ajouter un bouton ou un switch pour changer de mode
   Widget _buildModeToggle() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Text(
-          _quoteMode == QuoteMode.motivation ? "Mode Motivation" : "Mode Spicy",
-          style: const TextStyle(
-              color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(width: 20),
-        IconButton(
-          onPressed: _toggleQuoteMode,
-          icon: Icon(
-            _quoteMode == QuoteMode.motivation ? Icons.star : Icons.warning,
-            color: Colors.white,
-            size: 30,
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 500),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(30),
+        border: Border.all(color: Colors.white.withOpacity(0.3)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            _quoteMode == QuoteMode.motivation ? "Motivation" : "Spicy",
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+            ),
           ),
-        ),
-      ],
+          const SizedBox(width: 10),
+          GestureDetector(
+            onTap: _toggleQuoteMode,
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 500),
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: _quoteMode == QuoteMode.motivation
+                    ? Colors.blueAccent.withOpacity(0.7)
+                    : Colors.redAccent.withOpacity(0.7),
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.white.withOpacity(0.3),
+                    blurRadius: 10,
+                    spreadRadius: 2,
+                  ),
+                ],
+              ),
+              child: Icon(
+                _quoteMode == QuoteMode.motivation
+                    ? Icons.emoji_emotions
+                    : Icons.emoji_objects,
+                color: Colors.white,
+                size: 24,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
+}
+
+class _ParticlesPainter extends CustomPainter {
+  final AnimationController controller;
+
+  _ParticlesPainter({required this.controller}) : super(repaint: controller);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final random = math.Random();
+    final paint = Paint()
+      ..color = Colors.white.withOpacity(0.2)
+      ..style = PaintingStyle.fill;
+
+    for (int i = 0; i < 30; i++) {
+      final x = random.nextDouble() * size.width;
+      final y = random.nextDouble() * size.height;
+      final radius = random.nextDouble() * 3 + 1;
+      final offset = Offset(x, y + controller.value * 20 % size.height);
+      canvas.drawCircle(offset, radius, paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
 }
 
 enum QuoteMode { motivation, spicy }
