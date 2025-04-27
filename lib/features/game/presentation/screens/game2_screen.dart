@@ -451,90 +451,95 @@ class _Game2ScreenState extends State<Game2Screen>
                   },
                 ),
               ),
-
-              // Feedback sarcastique
-              if (_showFeedback)
-                AnimatedSlide(
-                  duration: const Duration(milliseconds: 500),
-                  offset: _showFeedback ? Offset.zero : const Offset(0, 1),
-                  child: Center(
-                    child: Card(
-                      elevation: 10,
-                      color: Colors.red[100],
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.all(20),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              sarcasticComment,
-                              style: const TextStyle(
-                                fontSize: 24,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.red,
-                              ),
-                              textAlign: TextAlign.center,
-                            ),
-                            const SizedBox(height: 10),
-                            const Icon(Icons.mood_bad,
-                                size: 50, color: Colors.red),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-
-              // Faux succès
-              if (_showFakeSuccess)
-                AnimatedOpacity(
-                  duration: const Duration(milliseconds: 500),
-                  opacity: _showFakeSuccess ? 1.0 : 0.0,
-                  child: Center(
-                    child: Card(
-                      elevation: 20,
-                      color: Colors.amber[100],
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.all(20),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Text(
-                              'BRAVO ! ... NON JE DÉCONNE 😈',
-                              style: TextStyle(
-                                fontSize: 24,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.red,
-                              ),
-                            ),
-                            const SizedBox(height: 20),
-                            Icon(
-                              Icons.emoji_emotions,
-                              size: 60,
-                              color: Colors.amber[600],
-                            ),
-                            const SizedBox(height: 10),
-                            Text(
-                              "T'as vraiment cru que c'était fini?",
-                              style: TextStyle(
-                                fontSize: 16,
-                                color: Colors.grey[700],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
             ],
           ),
+
+          // Feedback sarcastique
+          if (_showFeedback)
+            Positioned(
+              bottom: 160, // Position au-dessus des FABs
+              left: 20,
+              right: 20,
+              child: AnimatedSlide(
+                duration: const Duration(milliseconds: 500),
+                offset: _showFeedback ? Offset.zero : const Offset(0, 1),
+                child: Card(
+                  elevation: 10,
+                  color: Colors.red[100],
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          sarcasticComment,
+                          style: const TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.red,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 10),
+                        const Icon(Icons.mood_bad, size: 50, color: Colors.red),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+
+          // Faux succès
+          if (_showFakeSuccess)
+            Positioned(
+              bottom: 160, // Position au-dessus des FABs
+              left: 20,
+              right: 20,
+              child: AnimatedOpacity(
+                duration: const Duration(milliseconds: 500),
+                opacity: _showFakeSuccess ? 1.0 : 0.0,
+                child: Card(
+                  elevation: 20,
+                  color: Colors.amber[100],
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Text(
+                          'BRAVO ! ... NON JE DÉCONNE 😈',
+                          style: TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.red,
+                          ),
+                        ),
+                        const SizedBox(height: 20),
+                        Icon(
+                          Icons.emoji_emotions,
+                          size: 60,
+                          color: Colors.amber[600],
+                        ),
+                        const SizedBox(height: 10),
+                        Text(
+                          "T'as vraiment cru que c'était fini?",
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: Colors.grey[700],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
 
           // Confettis (pour le faux succès)
           ConfettiWidget(
