@@ -5,9 +5,12 @@ import 'dart:math' as math;
 // Ensure the Quote class is defined or imported correctly
 import '../../data/models/quote_model.dart'; // Adjust the path to where the Quote class is defined
 import '../../data/services/quotes_service.dart'; // Import du service de citations
+import '../../data/services/quotes_cache_service.dart'; // Import du service de cache
 
 class MotivationScreen extends StatefulWidget {
-  const MotivationScreen({super.key});
+  final QuotesService quotesService;
+
+  const MotivationScreen({super.key, required this.quotesService});
 
   @override
   State<MotivationScreen> createState() => _MotivationScreenState();
@@ -19,7 +22,6 @@ enum QuoteMode { motivation, spicy }
 class _MotivationScreenState extends State<MotivationScreen>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
-  final QuotesService _quotesService = QuotesService();
   List<Quote> _quotes = [];
   int _currentQuoteIndex = 0;
   QuoteMode _quoteMode = QuoteMode.motivation;
@@ -37,7 +39,8 @@ class _MotivationScreenState extends State<MotivationScreen>
 
   Future<void> _loadQuotes() async {
     try {
-      final response = await _quotesService.fetchQuotes();
+      final response = await widget.quotesService
+          .fetchQuotes(); // Utilisez le service du widget
       print('Quotes loaded: ${response.quotes.length}'); // Debug log
       setState(() {
         _quotes = response.quotes;
