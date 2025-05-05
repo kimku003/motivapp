@@ -123,6 +123,8 @@ class _MotivationScreenState extends State<MotivationScreen>
   int _currentQuoteIndex = 0;
   QuoteMode _quoteMode = QuoteMode.motivation;
   bool _isLoading = true;
+  LanguageSettings _languageSettings =
+      LanguageSettings(selectedLanguages: {Language.all});
 
   @override
   void initState() {
@@ -179,6 +181,55 @@ class _MotivationScreenState extends State<MotivationScreen>
           : QuoteMode.motivation;
       _currentQuoteIndex = 0;
     });
+  }
+
+  void _toggleLanguage(Language language) {
+    setState(() {
+      if (language == Language.all) {
+        _languageSettings = LanguageSettings(selectedLanguages: {Language.all});
+      } else {
+        var newLanguages =
+            Set<Language>.from(_languageSettings.selectedLanguages);
+        if (newLanguages.contains(Language.all)) {
+          newLanguages = {language};
+        } else if (newLanguages.contains(language)) {
+          if (newLanguages.length > 1) {
+            newLanguages.remove(language);
+          }
+        } else if (newLanguages.length < 2) {
+          newLanguages.add(language);
+        }
+        _languageSettings = LanguageSettings(selectedLanguages: newLanguages);
+      }
+    });
+  }
+
+  Widget _buildLanguageSelector() {
+    return Wrap(
+      spacing: 8,
+      children: [
+        FilterChip(
+          label: const Text('FR'),
+          selected: _languageSettings.showFrench,
+          onSelected: (_) => _toggleLanguage(Language.fr),
+        ),
+        FilterChip(
+          label: const Text('EN'),
+          selected: _languageSettings.showEnglish,
+          onSelected: (_) => _toggleLanguage(Language.en),
+        ),
+        FilterChip(
+          label: const Text('KO'),
+          selected: _languageSettings.showKorean,
+          onSelected: (_) => _toggleLanguage(Language.ko),
+        ),
+        FilterChip(
+          label: const Text('ALL'),
+          selected: _languageSettings.selectedLanguages.contains(Language.all),
+          onSelected: (_) => _toggleLanguage(Language.all),
+        ),
+      ],
+    );
   }
 
   Color _getBackgroundColor() {
@@ -266,44 +317,122 @@ class _MotivationScreenState extends State<MotivationScreen>
                                 child: Column(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    Text(
-                                      _currentQuotes.isNotEmpty
-                                          ? _currentQuotes[_currentQuoteIndex]
-                                                  .translations['fr'] ??
-                                              ''
-                                          : 'Aucune citation disponible',
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 24,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                      textAlign: TextAlign.center,
-                                    ),
+                                    _buildLanguageSelector(), // Ajout du sélecteur de langues
                                     const SizedBox(height: 20),
-                                    Text(
-                                      _currentQuotes.isNotEmpty
-                                          ? _currentQuotes[_currentQuoteIndex]
-                                                  .translations['en'] ??
-                                              ''
-                                          : 'No quote available',
-                                      style: TextStyle(
-                                        color: Colors.white.withOpacity(0.8),
-                                        fontSize: 20,
-                                        fontStyle: FontStyle.italic,
-                                      ),
-                                      textAlign: TextAlign.center,
-                                    ),
-                                    const SizedBox(height: 20),
-                                    if (_currentQuotes.isNotEmpty)
+                                    if (_languageSettings.showFrench) ...[
                                       Text(
-                                        "- ${_currentQuotes[_currentQuoteIndex].from['fr'] ?? ''}",
+                                        _currentQuotes.isNotEmpty
+                                            ? _currentQuotes[_currentQuoteIndex]
+                                                    .translations['fr'] ??
+                                                ''
+                                            : 'Aucune citation disponible',
                                         style: const TextStyle(
                                           color: Colors.white,
-                                          fontSize: 18,
-                                          fontWeight: FontWeight.w500,
+                                          fontSize: 24,
+                                          fontWeight: FontWeight.bold,
                                         ),
                                         textAlign: TextAlign.center,
                                       ),
+                                      const SizedBox(height: 20),
+                                    ],
+                                    if (_languageSettings.showEnglish) ...[
+                                      Text(
+                                        _currentQuotes.isNotEmpty
+                                            ? _currentQuotes[_currentQuoteIndex]
+                                                    .translations['en'] ??
+                                                ''
+                                            : 'No quote available',
+                                        style: TextStyle(
+                                          color: Colors.white.withOpacity(0.8),
+                                          fontSize: 20,
+                                          fontStyle: FontStyle.italic,
+                                        ),
+                                        textAlign: TextAlign.center,
+                                      ),
+                                      const SizedBox(height: 20),
+                                    ],
+                                    if (_languageSettings.showKorean) ...[
+                                      Text(
+                                        _currentQuotes.isNotEmpty
+                                            ? _currentQuotes[_currentQuoteIndex]
+                                                    .translations['ko'] ??
+                                                ''
+                                            : '인용구 없음',
+                                        style: TextStyle(
+                                          color: Colors.white.withOpacity(0.8),
+                                          fontSize: 20,
+                                        ),
+                                        textAlign: TextAlign.center,
+                                      ),
+                                      const SizedBox(height: 20),
+                                    ],
+                                    // Affichage de l'auteur dans la langue sélectionnée
+                                    if (_currentQuotes.isNotEmpty) ...[
+                                      const SizedBox(height: 20),
+                                      Container(
+                                        padding: const EdgeInsets.all(10),
+                                        decoration: BoxDecoration(
+                                          border: Border(
+                                            top: BorderSide(
+                                              color:
+                                                  Colors.white.withOpacity(0.3),
+                                              width: 1,
+                                            ),
+                                          ),
+                                        ),
+                                        child: Column(
+                                          children: [
+                                            if (_languageSettings
+                                                .selectedLanguages
+                                                .contains(Language.all)) ...[
+                                              if (_languageSettings.showFrench)
+                                                Text(
+                                                  "- ${_currentQuotes[_currentQuoteIndex].from['fr'] ?? ''}",
+                                                  style: const TextStyle(
+                                                    color: Colors.white,
+                                                    fontSize: 18,
+                                                    fontWeight: FontWeight.bold,
+                                                  ),
+                                                  textAlign: TextAlign.center,
+                                                ),
+                                              if (_languageSettings.showEnglish)
+                                                Text(
+                                                  "- ${_currentQuotes[_currentQuoteIndex].from['en'] ?? ''}",
+                                                  style: TextStyle(
+                                                    color: Colors.white
+                                                        .withOpacity(0.8),
+                                                    fontSize: 16,
+                                                    fontStyle: FontStyle.italic,
+                                                  ),
+                                                  textAlign: TextAlign.center,
+                                                ),
+                                              if (_languageSettings.showKorean)
+                                                Text(
+                                                  "- ${_currentQuotes[_currentQuoteIndex].from['ko'] ?? ''}",
+                                                  style: TextStyle(
+                                                    color: Colors.white
+                                                        .withOpacity(0.8),
+                                                    fontSize: 16,
+                                                  ),
+                                                  textAlign: TextAlign.center,
+                                                ),
+                                            ] else ...[
+                                              for (var lang in _languageSettings
+                                                  .selectedLanguages)
+                                                Text(
+                                                  "- ${_currentQuotes[_currentQuoteIndex].from[lang.name] ?? ''}",
+                                                  style: const TextStyle(
+                                                    color: Colors.white,
+                                                    fontSize: 18,
+                                                    fontWeight: FontWeight.w500,
+                                                  ),
+                                                  textAlign: TextAlign.center,
+                                                ),
+                                            ],
+                                          ],
+                                        ),
+                                      ),
+                                    ],
                                   ],
                                 ),
                               ),
@@ -346,6 +475,26 @@ class _ParticlesPainter extends CustomPainter {
 }
 
 enum QuoteMode { motivation, spicy }
+
+enum Language { fr, en, ko, all }
+
+class LanguageSettings {
+  final Set<Language> selectedLanguages;
+
+  const LanguageSettings({
+    required this.selectedLanguages,
+  });
+
+  bool get showFrench =>
+      selectedLanguages.contains(Language.fr) ||
+      selectedLanguages.contains(Language.all);
+  bool get showEnglish =>
+      selectedLanguages.contains(Language.en) ||
+      selectedLanguages.contains(Language.all);
+  bool get showKorean =>
+      selectedLanguages.contains(Language.ko) ||
+      selectedLanguages.contains(Language.all);
+}
 
 class AppRouter {
   static Route<dynamic> generateRoute(RouteSettings settings) {
