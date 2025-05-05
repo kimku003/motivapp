@@ -227,38 +227,116 @@ class _MotivationScreenState extends State<MotivationScreen>
                 opacity: animation,
                 child: SlideTransition(
                   position: Tween<Offset>(
-                          begin: const Offset(0, 0.5), end: Offset.zero)
-                      .animate(animation),
+                    begin: const Offset(0, 0.5),
+                    end: Offset.zero,
+                  ).animate(animation),
                   child: child,
                 ),
               );
             },
             child: _isLoading
                 ? const CircularProgressIndicator()
-                : Text(
-                    _currentQuotes.isNotEmpty
-                        ? _currentQuotes[_currentQuoteIndex]
-                                .translations['fr'] ??
-                            ''
-                        : 'Aucune citation disponible',
+                : Column(
                     key: ValueKey<String>(_currentQuotes.isNotEmpty
-                        ? _currentQuotes[_currentQuoteIndex]
-                                .translations['fr'] ??
-                            ''
+                        ? _currentQuotes[_currentQuoteIndex].id
                         : ''),
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      shadows: [
-                        Shadow(
-                          blurRadius: 5.0,
-                          color: Colors.black.withOpacity(0.5),
-                          offset: const Offset(1, 1),
+                    children: [
+                      // Citation en français
+                      Text(
+                        _currentQuotes.isNotEmpty
+                            ? _currentQuotes[_currentQuoteIndex]
+                                    .translations['fr'] ??
+                                ''
+                            : 'Aucune citation disponible',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
                         ),
-                      ],
-                    ),
-                    textAlign: TextAlign.center,
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 20),
+
+                      // Citation en anglais
+                      Text(
+                        _currentQuotes.isNotEmpty
+                            ? _currentQuotes[_currentQuoteIndex]
+                                    .translations['en'] ??
+                                ''
+                            : 'No quote available',
+                        style: TextStyle(
+                          color: Colors.white.withOpacity(0.8),
+                          fontSize: 20,
+                          fontStyle: FontStyle.italic,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 20),
+
+                      // Citation en coréen
+                      Text(
+                        _currentQuotes.isNotEmpty
+                            ? _currentQuotes[_currentQuoteIndex]
+                                    .translations['ko'] ??
+                                ''
+                            : '인용구 없음',
+                        style: TextStyle(
+                          color: Colors.white.withOpacity(0.8),
+                          fontSize: 20,
+                          fontWeight: FontWeight.w500,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 30),
+
+                      // Auteurs dans les trois langues
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          border: Border(
+                            top: BorderSide(
+                              color: Colors.white.withOpacity(0.3),
+                              width: 1,
+                            ),
+                          ),
+                        ),
+                        child: Column(
+                          children: [
+                            Text(
+                              _currentQuotes.isNotEmpty
+                                  ? "- ${_currentQuotes[_currentQuoteIndex].from['fr'] ?? ''}"
+                                  : '',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 5),
+                            Text(
+                              _currentQuotes.isNotEmpty
+                                  ? "- ${_currentQuotes[_currentQuoteIndex].from['en'] ?? ''}"
+                                  : '',
+                              style: TextStyle(
+                                color: Colors.white.withOpacity(0.8),
+                                fontSize: 16,
+                                fontStyle: FontStyle.italic,
+                              ),
+                            ),
+                            const SizedBox(height: 5),
+                            Text(
+                              _currentQuotes.isNotEmpty
+                                  ? "- ${_currentQuotes[_currentQuoteIndex].from['ko'] ?? ''}"
+                                  : '',
+                              style: TextStyle(
+                                color: Colors.white.withOpacity(0.8),
+                                fontSize: 16,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
           ),
         ),
