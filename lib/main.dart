@@ -10,18 +10,19 @@ import 'features/game/presentation/screens/game2_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await initializeServices();
-  runApp(const MyApp());
-}
 
-Future<void> initializeServices() async {
+  // Initialize services
   final prefs = await SharedPreferences.getInstance();
   final cacheService = QuotesCacheService(prefs);
-  // Additional service initialization can be added here
+  final quotesService = QuotesService(cacheService);
+
+  runApp(MyApp(quotesService: quotesService));
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+  final QuotesService quotesService;
+
+  const MyApp({super.key, required this.quotesService});
 
   @override
   Widget build(BuildContext context) {
@@ -43,12 +44,65 @@ class MyApp extends StatelessWidget {
         ),
       ),
       themeMode: ThemeMode.system,
-      onGenerateRoute: (settings) {
-        return AppRouter.generateRoute(RouteSettings(
-          name: settings.name,
-        ));
-      },
-      initialRoute: '/motivation',
+      home: MainNavigationScreen(quotesService: quotesService),
+    );
+  }
+}
+
+class MainNavigationScreen extends StatefulWidget {
+  final QuotesService quotesService;
+
+  const MainNavigationScreen({super.key, required this.quotesService});
+
+  @override
+  State<MainNavigationScreen> createState() => _MainNavigationScreenState();
+}
+
+class _MainNavigationScreenState extends State<MainNavigationScreen> {
+  int _selectedIndex = 0;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: IndexedStack(
+        index: _selectedIndex,
+        children: [
+          MotivationScreen(quotesService: widget.quotesService),
+          const QuizScreen(),
+          const GameScreen(),
+          const Game2Screen(),
+        ],
+      ),
+      bottomNavigationBar: BottomNavigationBar(
+        currentIndex: _selectedIndex,
+        onTap: (index) {
+          setState(() {
+            _selectedIndex = index;
+          });
+        },
+        type: BottomNavigationBarType.fixed,
+        backgroundColor: Colors.black.withOpacity(0.8),
+        selectedItemColor: Colors.white,
+        unselectedItemColor: Colors.white.withOpacity(0.5),
+        items: const [
+          BottomNavigationBarItem(
+            icon: Icon(Icons.format_quote),
+            label: 'Citations',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.quiz),
+            label: 'Quiz',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.games),
+            label: 'Jeu 1',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.gamepad),
+            label: 'Jeu 2',
+          ),
+        ],
+      ),
     );
   }
 }
@@ -148,6 +202,118 @@ class _MotivationScreenState extends State<MotivationScreen>
         onRefresh: _loadQuotes,
         child: GestureDetector(
           onTap: _changeQuote,
+          child: Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  _getBackgroundColor(),
+                  Colors.purple.shade900,
+                ],
+              ),
+            ),
+            child: CustomPaint(
+              painter: _ParticlesPainter(controller: _controller),
+              child: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    AnimatedBuilder(
+                      animation: _controller,
+                      builder: (_, child) {
+                        return Transform.rotate(
+                          angle: _controller.value * 2 * math.pi,
+                          child: child,
+                        );
+                      },
+                      child: Container(
+                        width: 150,
+                        height: 150,
+                        decoration: BoxDecoration(
+                          color: Colors.transparent,
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: Colors.white,
+                            width: 4,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.white.withOpacity(0.5),
+                              blurRadius: 15,
+                              spreadRadius: 5,
+                            ),
+                          ],
+                        ),
+                        child: const Icon(
+                          Icons.star,
+                          color: Colors.white,
+                          size: 80,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 40),
+
+                    // Affichage de la citation avec animation
+                    AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 500),
+                      child: _isLoading
+                          ? const CircularProgressIndicator()
+                          : Card(
+                              color: Colors.black.withOpacity(0.2),
+                              child: Padding(
+                                padding: const EdgeInsets.all(20.0),
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(
+                                      _currentQuotes.isNotEmpty
+                                          ? _currentQuotes[_currentQuoteIndex]
+                                                  .translations['fr'] ??
+                                              ''
+                                          : 'Aucune citation disponible',
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 24,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                      textAlign: TextAlign.center,
+                                    ),
+                                    const SizedBox(height: 20),
+                                    Text(
+                                      _currentQuotes.isNotEmpty
+                                          ? _currentQuotes[_currentQuoteIndex]
+                                                  .translations['en'] ??
+                                              ''
+                                          : 'No quote available',
+                                      style: TextStyle(
+                                        color: Colors.white.withOpacity(0.8),
+                                        fontSize: 20,
+                                        fontStyle: FontStyle.italic,
+                                      ),
+                                      textAlign: TextAlign.center,
+                                    ),
+                                    const SizedBox(height: 20),
+                                    if (_currentQuotes.isNotEmpty)
+                                      Text(
+                                        "- ${_currentQuotes[_currentQuoteIndex].from['fr'] ?? ''}",
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                        textAlign: TextAlign.center,
+                                      ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
         ),
       ),
     );
