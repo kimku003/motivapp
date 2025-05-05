@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
-import '../../data/quotes.dart'; // Import des citations
+//import '../../data/quotes.dart'; // Import des citations
+
+// Ensure the Quote class is defined or imported correctly
+import '../../data/models/quote_model.dart'; // Adjust the path to where the Quote class is defined
+import '../../data/services/quotes_service.dart'; // Import du service de citations
 
 class MotivationScreen extends StatefulWidget {
   const MotivationScreen({super.key});
@@ -15,20 +19,11 @@ enum QuoteMode { motivation, spicy }
 class _MotivationScreenState extends State<MotivationScreen>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
+  final QuotesService _quotesService = QuotesService();
+  List<Quote> _quotes = [];
   int _currentQuoteIndex = 0;
-
   QuoteMode _quoteMode = QuoteMode.motivation;
-
-  // Récupère les bonnes citations selon le mode choisi
-  List<String> get _currentQuotes {
-    switch (_quoteMode) {
-      case QuoteMode.spicy:
-        return spicyQuotes;
-      case QuoteMode.motivation:
-      default:
-        return motivationalQuotes;
-    }
-  }
+  bool _isLoading = true;
 
   @override
   void initState() {
@@ -37,12 +32,33 @@ class _MotivationScreenState extends State<MotivationScreen>
       duration: const Duration(seconds: 10),
       vsync: this,
     )..repeat();
+    _loadQuotes();
   }
 
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
+  Future<void> _loadQuotes() async {
+    try {
+      final response = await _quotesService.fetchQuotes();
+      print('Quotes loaded: ${response.quotes.length}'); // Debug log
+      setState(() {
+        _quotes = response.quotes;
+        _isLoading = false;
+      });
+    } catch (e) {
+      print('Error in _loadQuotes: $e'); // Debug log
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  List<Quote> get _currentQuotes {
+    final filtered = _quotes
+        .where((quote) =>
+            quote.category ==
+            (_quoteMode == QuoteMode.motivation ? "motivational" : "spicy"))
+        .toList();
+    print('Filtered quotes: ${filtered.length}'); // Debug log
+    return filtered;
   }
 
   // Fonction pour changer de citation
@@ -50,6 +66,12 @@ class _MotivationScreenState extends State<MotivationScreen>
     setState(() {
       _currentQuoteIndex = (_currentQuoteIndex + 1) % _currentQuotes.length;
     });
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
   }
 
   @override
@@ -144,23 +166,112 @@ class _MotivationScreenState extends State<MotivationScreen>
                 // Affichage de la citation avec animation
                 AnimatedSwitcher(
                   duration: const Duration(milliseconds: 500),
-                  child: Text(
-                    _currentQuotes[_currentQuoteIndex],
-                    key: ValueKey<String>(_currentQuotes[_currentQuoteIndex]),
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      shadows: [
-                        Shadow(
-                          blurRadius: 10.0,
-                          color: Colors.white,
-                          offset: Offset(0, 0),
+                  child: _isLoading
+                      ? const CircularProgressIndicator()
+                      : Card(
+                          color: Colors.black.withOpacity(0.2),
+                          child: Padding(
+                            padding: const EdgeInsets.all(20.0),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                // Citation en français
+                                Text(
+                                  _currentQuotes.isNotEmpty
+                                      ? _currentQuotes[_currentQuoteIndex]
+                                              .translations['fr'] ??
+                                          ''
+                                      : 'Aucune citation disponible',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 24,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                                const SizedBox(height: 20),
+
+                                // Citation en anglais
+                                Text(
+                                  _currentQuotes.isNotEmpty
+                                      ? _currentQuotes[_currentQuoteIndex]
+                                              .translations['en'] ??
+                                          ''
+                                      : 'No quote available',
+                                  style: TextStyle(
+                                    color: Colors.white.withOpacity(0.8),
+                                    fontSize: 20,
+                                    fontStyle: FontStyle.italic,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                                const SizedBox(height: 20),
+
+                                // Citation en coréen
+                                Text(
+                                  _currentQuotes.isNotEmpty
+                                      ? _currentQuotes[_currentQuoteIndex]
+                                              .translations['ko'] ??
+                                          ''
+                                      : '인용구 없음',
+                                  style: TextStyle(
+                                    color: Colors.white.withOpacity(0.8),
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                                const SizedBox(height: 30),
+
+                                // Auteur dans les trois langues
+                                Container(
+                                  padding: const EdgeInsets.all(10),
+                                  decoration: BoxDecoration(
+                                    border: Border(
+                                      top: BorderSide(
+                                        color: Colors.white.withOpacity(0.3),
+                                        width: 1,
+                                      ),
+                                    ),
+                                  ),
+                                  child: Column(
+                                    children: [
+                                      Text(
+                                        _currentQuotes.isNotEmpty
+                                            ? "- ${_currentQuotes[_currentQuoteIndex].from[2] ?? ''}" // Assuming '2' is the correct integer key for 'fr'
+                                            : '',
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                      Text(
+                                        _currentQuotes.isNotEmpty
+                                            ? "- ${_currentQuotes[_currentQuoteIndex].from[1] ?? ''}" // Assuming '1' is the correct integer key for 'en'
+                                            : '',
+                                        style: TextStyle(
+                                          color: Colors.white.withOpacity(0.8),
+                                          fontSize: 16,
+                                          fontStyle: FontStyle.italic,
+                                        ),
+                                      ),
+                                      Text(
+                                        _currentQuotes.isNotEmpty
+                                            ? "- ${_currentQuotes[_currentQuoteIndex].from[0] ?? ''}" // Assuming '0' is the correct key
+                                            : '',
+                                        style: TextStyle(
+                                          color: Colors.white.withOpacity(0.8),
+                                          fontSize: 16,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
                         ),
-                      ],
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
                 ),
                 const SizedBox(height: 40),
                 Text(

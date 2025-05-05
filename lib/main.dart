@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
-import 'features/motivation/data/quotes.dart'; // Import des citations
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+
 import 'features/quiz/presentation/screens/quiz_screen.dart';
 import 'features/game/presentation/screens/game_screen.dart';
 import 'features/game/presentation/screens/game2_screen.dart';
@@ -48,30 +50,51 @@ class MotivationScreen extends StatefulWidget {
 class _MotivationScreenState extends State<MotivationScreen>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
+  final QuotesService _quotesService = QuotesService();
+  List<Quote> _quotes = [];
   int _currentQuoteIndex = 0;
   QuoteMode _quoteMode = QuoteMode.motivation;
-
-  List<String> get _currentQuotes =>
-      _quoteMode == QuoteMode.motivation ? motivationalQuotes : spicyQuotes;
+  bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    _controller =
-        AnimationController(duration: const Duration(seconds: 10), vsync: this)
-          ..repeat();
+    _controller = AnimationController(
+      duration: const Duration(seconds: 10),
+      vsync: this,
+    )..repeat();
+    _loadQuotes();
   }
 
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
+  Future<void> _loadQuotes() async {
+    try {
+      final response = await _quotesService.fetchQuotes();
+      setState(() {
+        _quotes = response.quotes;
+        _isLoading = false;
+      });
+    } catch (e) {
+      print('Error loading quotes: $e');
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  List<Quote> get _currentQuotes {
+    return _quotes
+        .where((quote) =>
+            quote.category ==
+            (_quoteMode == QuoteMode.motivation ? "motivational" : "spicy"))
+        .toList();
   }
 
   void _changeQuote() {
-    setState(() {
-      _currentQuoteIndex = (_currentQuoteIndex + 1) % _currentQuotes.length;
-    });
+    if (_currentQuotes.isNotEmpty) {
+      setState(() {
+        _currentQuoteIndex = (_currentQuoteIndex + 1) % _currentQuotes.length;
+      });
+    }
   }
 
   void _toggleQuoteMode() {
@@ -210,23 +233,33 @@ class _MotivationScreenState extends State<MotivationScreen>
                 ),
               );
             },
-            child: Text(
-              _currentQuotes[_currentQuoteIndex],
-              key: ValueKey<int>(_currentQuoteIndex),
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                shadows: [
-                  Shadow(
-                    blurRadius: 5.0,
-                    color: Colors.black.withOpacity(0.5),
-                    offset: const Offset(1, 1),
+            child: _isLoading
+                ? const CircularProgressIndicator()
+                : Text(
+                    _currentQuotes.isNotEmpty
+                        ? _currentQuotes[_currentQuoteIndex]
+                                .translations['fr'] ??
+                            ''
+                        : 'Aucune citation disponible',
+                    key: ValueKey<String>(_currentQuotes.isNotEmpty
+                        ? _currentQuotes[_currentQuoteIndex]
+                                .translations['fr'] ??
+                            ''
+                        : ''),
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      shadows: [
+                        Shadow(
+                          blurRadius: 5.0,
+                          color: Colors.black.withOpacity(0.5),
+                          offset: const Offset(1, 1),
+                        ),
+                      ],
+                    ),
+                    textAlign: TextAlign.center,
                   ),
-                ],
-              ),
-              textAlign: TextAlign.center,
-            ),
           ),
         ),
       ),
@@ -283,7 +316,9 @@ class _MotivationScreenState extends State<MotivationScreen>
     return AnimatedSwitcher(
       duration: const Duration(milliseconds: 500),
       child: Text(
-        _currentQuotes[_currentQuoteIndex],
+        _currentQuotes.isNotEmpty
+            ? _currentQuotes[_currentQuoteIndex].translations['fr'] ?? ''
+            : "Loading...",
         key: ValueKey<int>(_currentQuoteIndex),
         style: const TextStyle(
           color: Colors.white,
@@ -476,5 +511,75 @@ class AppRouter {
           ),
         );
     }
+  }
+}
+
+class QuotesService {
+  static const String _url =
+      'https://raw.githubusercontent.com/kimku003/quotes/main/quotes.json';
+
+  Future<QuotesResponse> fetchQuotes() async {
+    try {
+      print('Fetching quotes from: $_url'); // Debug log
+
+      final response = await http.get(Uri.parse(_url));
+      print('Response status code: ${response.statusCode}'); // Debug log
+
+      if (response.statusCode == 200) {
+        print('Response body: ${response.body}'); // Debug log
+        final decodedData = json.decode(response.body);
+        return QuotesResponse.fromJson(decodedData);
+      } else {
+        throw Exception('Failed to load quotes: ${response.statusCode}');
+      }
+    } catch (e) {
+      print('Error fetching quotes: $e'); // Debug log
+      throw Exception('Error fetching quotes: $e');
+    }
+  }
+}
+
+class QuotesResponse {
+  final String lastUpdated;
+  final List<Quote> quotes;
+
+  QuotesResponse({
+    required this.lastUpdated,
+    required this.quotes,
+  });
+
+  factory QuotesResponse.fromJson(Map<String, dynamic> json) {
+    return QuotesResponse(
+      lastUpdated: json['last_updated'] as String,
+      quotes: (json['quotes'] as List)
+          .map((quote) => Quote.fromJson(quote))
+          .toList(),
+    );
+  }
+}
+
+class Quote {
+  final String id;
+  final Map<String, String> translations;
+  final Map<String, String> from; // Changed from String to Map<String, String>
+  final List<String> tags;
+  final String category;
+
+  Quote({
+    required this.id,
+    required this.translations,
+    required this.from,
+    required this.tags,
+    required this.category,
+  });
+
+  factory Quote.fromJson(Map<String, dynamic> json) {
+    return Quote(
+      id: json['id'] as String,
+      translations: Map<String, String>.from(json['translations']),
+      from: Map<String, String>.from(json['from']), // Parse from as a Map
+      tags: List<String>.from(json['tags']),
+      category: json['category'] as String,
+    );
   }
 }
