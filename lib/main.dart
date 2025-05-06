@@ -1,16 +1,28 @@
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
-import 'features/motivation/data/quotes.dart'; // Import des citations
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'package:shared_preferences/shared_preferences.dart';
+
 import 'features/quiz/presentation/screens/quiz_screen.dart';
 import 'features/game/presentation/screens/game_screen.dart';
 import 'features/game/presentation/screens/game2_screen.dart';
 
-void main() {
-  runApp(const MyApp());
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // Initialize services
+  final prefs = await SharedPreferences.getInstance();
+  final cacheService = QuotesCacheService(prefs);
+  final quotesService = QuotesService(cacheService);
+
+  runApp(MyApp(quotesService: quotesService));
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+  final QuotesService quotesService;
+
+  const MyApp({super.key, required this.quotesService});
 
   @override
   Widget build(BuildContext context) {
@@ -32,14 +44,73 @@ class MyApp extends StatelessWidget {
         ),
       ),
       themeMode: ThemeMode.system,
-      onGenerateRoute: AppRouter.generateRoute,
-      initialRoute: '/motivation',
+      home: MainNavigationScreen(quotesService: quotesService),
+    );
+  }
+}
+
+class MainNavigationScreen extends StatefulWidget {
+  final QuotesService quotesService;
+
+  const MainNavigationScreen({super.key, required this.quotesService});
+
+  @override
+  State<MainNavigationScreen> createState() => _MainNavigationScreenState();
+}
+
+class _MainNavigationScreenState extends State<MainNavigationScreen> {
+  int _selectedIndex = 0;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: IndexedStack(
+        index: _selectedIndex,
+        children: [
+          MotivationScreen(quotesService: widget.quotesService),
+          const QuizScreen(),
+          const GameScreen(),
+          const Game2Screen(),
+        ],
+      ),
+      bottomNavigationBar: BottomNavigationBar(
+        currentIndex: _selectedIndex,
+        onTap: (index) {
+          setState(() {
+            _selectedIndex = index;
+          });
+        },
+        type: BottomNavigationBarType.fixed,
+        backgroundColor: Colors.black.withOpacity(0.8),
+        selectedItemColor: Colors.white,
+        unselectedItemColor: Colors.white.withOpacity(0.5),
+        items: const [
+          BottomNavigationBarItem(
+            icon: Icon(Icons.format_quote),
+            label: 'Citations',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.quiz),
+            label: 'Quiz',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.games),
+            label: 'Jeu 1',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.gamepad),
+            label: 'Jeu 2',
+          ),
+        ],
+      ),
     );
   }
 }
 
 class MotivationScreen extends StatefulWidget {
-  const MotivationScreen({super.key});
+  final QuotesService quotesService;
+
+  const MotivationScreen({super.key, required this.quotesService});
 
   @override
   State<MotivationScreen> createState() => _MotivationScreenState();
@@ -48,30 +119,59 @@ class MotivationScreen extends StatefulWidget {
 class _MotivationScreenState extends State<MotivationScreen>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
+  List<Quote> _quotes = [];
   int _currentQuoteIndex = 0;
   QuoteMode _quoteMode = QuoteMode.motivation;
-
-  List<String> get _currentQuotes =>
-      _quoteMode == QuoteMode.motivation ? motivationalQuotes : spicyQuotes;
+  bool _isLoading = true;
+  LanguageSettings _languageSettings =
+      LanguageSettings(selectedLanguages: {Language.all});
 
   @override
   void initState() {
     super.initState();
-    _controller =
-        AnimationController(duration: const Duration(seconds: 10), vsync: this)
-          ..repeat();
+    _controller = AnimationController(
+      duration: const Duration(seconds: 10),
+      vsync: this,
+    )..repeat();
+    _loadQuotes();
   }
 
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
+  Future<void> _loadQuotes() async {
+    try {
+      final response = await widget.quotesService.fetchQuotes();
+      setState(() {
+        _quotes = response.quotes;
+        _isLoading = false;
+      });
+    } catch (e) {
+      print('Error loading quotes: $e');
+      setState(() {
+        _isLoading = false;
+        // Show error message to user
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error loading quotes: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      });
+    }
+  }
+
+  List<Quote> get _currentQuotes {
+    return _quotes
+        .where((quote) =>
+            quote.category ==
+            (_quoteMode == QuoteMode.motivation ? "motivational" : "spicy"))
+        .toList();
   }
 
   void _changeQuote() {
-    setState(() {
-      _currentQuoteIndex = (_currentQuoteIndex + 1) % _currentQuotes.length;
-    });
+    if (_currentQuotes.isNotEmpty) {
+      setState(() {
+        _currentQuoteIndex = (_currentQuoteIndex + 1) % _currentQuotes.length;
+      });
+    }
   }
 
   void _toggleQuoteMode() {
@@ -81,6 +181,55 @@ class _MotivationScreenState extends State<MotivationScreen>
           : QuoteMode.motivation;
       _currentQuoteIndex = 0;
     });
+  }
+
+  void _toggleLanguage(Language language) {
+    setState(() {
+      if (language == Language.all) {
+        _languageSettings = LanguageSettings(selectedLanguages: {Language.all});
+      } else {
+        var newLanguages =
+            Set<Language>.from(_languageSettings.selectedLanguages);
+        if (newLanguages.contains(Language.all)) {
+          newLanguages = {language};
+        } else if (newLanguages.contains(language)) {
+          if (newLanguages.length > 1) {
+            newLanguages.remove(language);
+          }
+        } else if (newLanguages.length < 2) {
+          newLanguages.add(language);
+        }
+        _languageSettings = LanguageSettings(selectedLanguages: newLanguages);
+      }
+    });
+  }
+
+  Widget _buildLanguageSelector() {
+    return Wrap(
+      spacing: 8,
+      children: [
+        FilterChip(
+          label: const Text('FR'),
+          selected: _languageSettings.showFrench,
+          onSelected: (_) => _toggleLanguage(Language.fr),
+        ),
+        FilterChip(
+          label: const Text('EN'),
+          selected: _languageSettings.showEnglish,
+          onSelected: (_) => _toggleLanguage(Language.en),
+        ),
+        FilterChip(
+          label: const Text('KO'),
+          selected: _languageSettings.showKorean,
+          onSelected: (_) => _toggleLanguage(Language.ko),
+        ),
+        FilterChip(
+          label: const Text('ALL'),
+          selected: _languageSettings.selectedLanguages.contains(Language.all),
+          onSelected: (_) => _toggleLanguage(Language.all),
+        ),
+      ],
+    );
   }
 
   Color _getBackgroundColor() {
@@ -99,333 +248,202 @@ class _MotivationScreenState extends State<MotivationScreen>
 
   @override
   Widget build(BuildContext context) {
-    final backgroundColor = _getBackgroundColor();
     return Scaffold(
-      body: GestureDetector(
-        onTap: _changeQuote,
-        child: Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                _getBackgroundColor(),
-                Color.lerp(
+      body: RefreshIndicator(
+        onRefresh: _loadQuotes,
+        child: GestureDetector(
+          onTap: _changeQuote,
+          child: Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
                   _getBackgroundColor(),
-                  Colors.deepPurple,
-                  0.7,
-                )!,
-              ],
-            ),
-          ),
-          child: Stack(
-            children: [
-              // Particules flottantes en arrière-plan
-              Positioned.fill(
-                child: CustomPaint(
-                  painter: _ParticlesPainter(controller: _controller),
-                ),
+                  Colors.purple.shade900,
+                ],
               ),
-              SafeArea(
-                child: SingleChildScrollView(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const SizedBox(height: 40),
-                        _buildRotatingIcon(),
-                        const SizedBox(height: 30),
-                        _buildQuoteCard(),
-                        const SizedBox(height: 20),
-                        _buildProgressIndicator(),
-                        const SizedBox(height: 20),
-                        _buildNavigationButtons(),
-                        const SizedBox(height: 20),
-                        _buildModeToggle(),
-                        const SizedBox(height: 40),
-                      ],
+            ),
+            child: CustomPaint(
+              painter: _ParticlesPainter(controller: _controller),
+              child: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    AnimatedBuilder(
+                      animation: _controller,
+                      builder: (_, child) {
+                        return Transform.rotate(
+                          angle: _controller.value * 2 * math.pi,
+                          child: child,
+                        );
+                      },
+                      child: Container(
+                        width: 150,
+                        height: 150,
+                        decoration: BoxDecoration(
+                          color: Colors.transparent,
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: Colors.white,
+                            width: 4,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.white.withOpacity(0.5),
+                              blurRadius: 15,
+                              spreadRadius: 5,
+                            ),
+                          ],
+                        ),
+                        child: const Icon(
+                          Icons.star,
+                          color: Colors.white,
+                          size: 80,
+                        ),
+                      ),
                     ),
-                  ),
+                    const SizedBox(height: 40),
+
+                    // Affichage de la citation avec animation
+                    AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 500),
+                      child: _isLoading
+                          ? const CircularProgressIndicator()
+                          : Card(
+                              color: Colors.black.withOpacity(0.2),
+                              child: Padding(
+                                padding: const EdgeInsets.all(20.0),
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    _buildLanguageSelector(), // Ajout du sélecteur de langues
+                                    const SizedBox(height: 20),
+                                    if (_languageSettings.showFrench) ...[
+                                      Text(
+                                        _currentQuotes.isNotEmpty
+                                            ? _currentQuotes[_currentQuoteIndex]
+                                                    .translations['fr'] ??
+                                                ''
+                                            : 'Aucune citation disponible',
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 24,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                        textAlign: TextAlign.center,
+                                      ),
+                                      const SizedBox(height: 20),
+                                    ],
+                                    if (_languageSettings.showEnglish) ...[
+                                      Text(
+                                        _currentQuotes.isNotEmpty
+                                            ? _currentQuotes[_currentQuoteIndex]
+                                                    .translations['en'] ??
+                                                ''
+                                            : 'No quote available',
+                                        style: TextStyle(
+                                          color: Colors.white.withOpacity(0.8),
+                                          fontSize: 20,
+                                          fontStyle: FontStyle.italic,
+                                        ),
+                                        textAlign: TextAlign.center,
+                                      ),
+                                      const SizedBox(height: 20),
+                                    ],
+                                    if (_languageSettings.showKorean) ...[
+                                      Text(
+                                        _currentQuotes.isNotEmpty
+                                            ? _currentQuotes[_currentQuoteIndex]
+                                                    .translations['ko'] ??
+                                                ''
+                                            : '인용구 없음',
+                                        style: TextStyle(
+                                          color: Colors.white.withOpacity(0.8),
+                                          fontSize: 20,
+                                        ),
+                                        textAlign: TextAlign.center,
+                                      ),
+                                      const SizedBox(height: 20),
+                                    ],
+                                    // Affichage de l'auteur dans la langue sélectionnée
+                                    if (_currentQuotes.isNotEmpty) ...[
+                                      const SizedBox(height: 20),
+                                      Container(
+                                        padding: const EdgeInsets.all(10),
+                                        decoration: BoxDecoration(
+                                          border: Border(
+                                            top: BorderSide(
+                                              color:
+                                                  Colors.white.withOpacity(0.3),
+                                              width: 1,
+                                            ),
+                                          ),
+                                        ),
+                                        child: Column(
+                                          children: [
+                                            if (_languageSettings
+                                                .selectedLanguages
+                                                .contains(Language.all)) ...[
+                                              if (_languageSettings.showFrench)
+                                                Text(
+                                                  "- ${_currentQuotes[_currentQuoteIndex].from['fr'] ?? ''}",
+                                                  style: const TextStyle(
+                                                    color: Colors.white,
+                                                    fontSize: 18,
+                                                    fontWeight: FontWeight.bold,
+                                                  ),
+                                                  textAlign: TextAlign.center,
+                                                ),
+                                              if (_languageSettings.showEnglish)
+                                                Text(
+                                                  "- ${_currentQuotes[_currentQuoteIndex].from['en'] ?? ''}",
+                                                  style: TextStyle(
+                                                    color: Colors.white
+                                                        .withOpacity(0.8),
+                                                    fontSize: 16,
+                                                    fontStyle: FontStyle.italic,
+                                                  ),
+                                                  textAlign: TextAlign.center,
+                                                ),
+                                              if (_languageSettings.showKorean)
+                                                Text(
+                                                  "- ${_currentQuotes[_currentQuoteIndex].from['ko'] ?? ''}",
+                                                  style: TextStyle(
+                                                    color: Colors.white
+                                                        .withOpacity(0.8),
+                                                    fontSize: 16,
+                                                  ),
+                                                  textAlign: TextAlign.center,
+                                                ),
+                                            ] else ...[
+                                              for (var lang in _languageSettings
+                                                  .selectedLanguages)
+                                                Text(
+                                                  "- ${_currentQuotes[_currentQuoteIndex].from[lang.name] ?? ''}",
+                                                  style: const TextStyle(
+                                                    color: Colors.white,
+                                                    fontSize: 18,
+                                                    fontWeight: FontWeight.w500,
+                                                  ),
+                                                  textAlign: TextAlign.center,
+                                                ),
+                                            ],
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                              ),
+                            ),
+                    ),
+                  ],
                 ),
               ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildProgressIndicator() {
-    return SizedBox(
-      width: 200,
-      child: TweenAnimationBuilder(
-        tween: Tween(begin: 0.0, end: 1.0),
-        duration: const Duration(seconds: 10),
-        onEnd: _changeQuote,
-        builder: (BuildContext context, double value, Widget? child) {
-          return ClipRRect(
-            borderRadius: BorderRadius.circular(10),
-            child: LinearProgressIndicator(
-              value: value,
-              backgroundColor: Colors.white.withOpacity(0.2),
-              valueColor: AlwaysStoppedAnimation<Color>(
-                _quoteMode == QuoteMode.motivation
-                    ? Colors.blueAccent
-                    : Colors.redAccent,
-              ),
-              minHeight: 10,
-            ),
-          );
-        },
-      ),
-    );
-  }
-
-// Nouveau widget pour la carte de citation
-  Widget _buildQuoteCard() {
-    return Card(
-      elevation: 10,
-      color: Colors.white.withOpacity(0.15),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20),
-        side: BorderSide(color: Colors.white.withOpacity(0.5), width: 1),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: ConstrainedBox(
-          constraints: BoxConstraints(
-            maxWidth: MediaQuery.of(context).size.width * 0.8,
-          ),
-          child: AnimatedSwitcher(
-            duration: const Duration(milliseconds: 800),
-            transitionBuilder: (Widget child, Animation<double> animation) {
-              return FadeTransition(
-                opacity: animation,
-                child: SlideTransition(
-                  position: Tween<Offset>(
-                          begin: const Offset(0, 0.5), end: Offset.zero)
-                      .animate(animation),
-                  child: child,
-                ),
-              );
-            },
-            child: Text(
-              _currentQuotes[_currentQuoteIndex],
-              key: ValueKey<int>(_currentQuoteIndex),
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                shadows: [
-                  Shadow(
-                    blurRadius: 5.0,
-                    color: Colors.black.withOpacity(0.5),
-                    offset: const Offset(1, 1),
-                  ),
-                ],
-              ),
-              textAlign: TextAlign.center,
             ),
           ),
         ),
-      ),
-    );
-  }
-
-  AnimatedBuilder _buildRotatingIcon() {
-    return AnimatedBuilder(
-      animation: _controller,
-      builder: (_, child) {
-        return Transform.rotate(
-          angle: _controller.value * 2 * math.pi,
-          child: Transform.scale(
-            scale: 1 + math.sin(_controller.value * math.pi * 2) * 0.1,
-            child: child,
-          ),
-        );
-      },
-      child: Container(
-        width: 150,
-        height: 150,
-        decoration: BoxDecoration(
-          gradient: RadialGradient(
-            colors: [
-              Colors.white.withOpacity(0.8),
-              Colors.transparent,
-            ],
-            stops: const [0.1, 1.0],
-          ),
-          shape: BoxShape.circle,
-        ),
-        child: ShaderMask(
-          shaderCallback: (Rect bounds) {
-            return LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                Colors.blueAccent,
-                Colors.purpleAccent,
-              ],
-            ).createShader(bounds);
-          },
-          child: const Icon(
-            Icons.auto_awesome,
-            color: Colors.white,
-            size: 80,
-          ),
-        ),
-      ),
-    );
-  }
-
-  AnimatedSwitcher _buildQuoteText() {
-    return AnimatedSwitcher(
-      duration: const Duration(milliseconds: 500),
-      child: Text(
-        _currentQuotes[_currentQuoteIndex],
-        key: ValueKey<int>(_currentQuoteIndex),
-        style: const TextStyle(
-          color: Colors.white,
-          fontSize: 24,
-          fontWeight: FontWeight.bold,
-          shadows: [
-            Shadow(blurRadius: 10.0, color: Colors.white, offset: Offset(0, 0)),
-          ],
-        ),
-        textAlign: TextAlign.center,
-      ),
-    );
-  }
-
-  Widget _buildNavigationButton(String text, String routeName, Color color) {
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 300),
-      margin: const EdgeInsets.symmetric(vertical: 8),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(30),
-        boxShadow: [
-          BoxShadow(
-            color: color.withOpacity(0.4),
-            blurRadius: 10,
-            spreadRadius: 2,
-            offset: const Offset(0, 4),
-          ),
-        ],
-        gradient: LinearGradient(
-          colors: [color, Color.lerp(color, Colors.white, 0.2)!],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-      ),
-      child: ElevatedButton(
-        onPressed: () {
-          Navigator.pushNamed(context, routeName);
-        },
-        style: ElevatedButton.styleFrom(
-          backgroundColor: Colors.transparent,
-          shadowColor: Colors.transparent,
-          padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(30),
-          ),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              _getIconForRoute(routeName),
-              color: Colors.white,
-            ),
-            const SizedBox(width: 10),
-            Text(
-              text,
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  IconData _getIconForRoute(String routeName) {
-    switch (routeName) {
-      case '/quiz':
-        return Icons.quiz;
-      case '/game':
-        return Icons.gamepad;
-      case '/game2':
-        return Icons.sports_esports;
-      default:
-        return Icons.star;
-    }
-  }
-
-  Column _buildNavigationButtons() {
-    return Column(
-      children: [
-        _buildNavigationButton("Commencer un quiz", '/quiz', Colors.indigo),
-        const SizedBox(height: 20),
-        _buildNavigationButton("Jouer à un jeu", '/game', Colors.green),
-        const SizedBox(height: 20),
-        _buildNavigationButton("Jouer au second jeu", '/game2', Colors.orange),
-      ],
-    );
-  }
-
-  Widget _buildModeToggle() {
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 500),
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(30),
-        border: Border.all(color: Colors.white.withOpacity(0.3)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            _quoteMode == QuoteMode.motivation ? "Motivation" : "Spicy",
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(width: 10),
-          GestureDetector(
-            onTap: _toggleQuoteMode,
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 500),
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: _quoteMode == QuoteMode.motivation
-                    ? Colors.blueAccent.withOpacity(0.7)
-                    : Colors.redAccent.withOpacity(0.7),
-                shape: BoxShape.circle,
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.white.withOpacity(0.3),
-                    blurRadius: 10,
-                    spreadRadius: 2,
-                  ),
-                ],
-              ),
-              child: Icon(
-                _quoteMode == QuoteMode.motivation
-                    ? Icons.emoji_emotions
-                    : Icons.emoji_objects,
-                color: Colors.white,
-                size: 24,
-              ),
-            ),
-          ),
-        ],
       ),
     );
   }
@@ -458,23 +476,134 @@ class _ParticlesPainter extends CustomPainter {
 
 enum QuoteMode { motivation, spicy }
 
+enum Language { fr, en, ko, all }
+
+class LanguageSettings {
+  final Set<Language> selectedLanguages;
+
+  const LanguageSettings({
+    required this.selectedLanguages,
+  });
+
+  bool get showFrench =>
+      selectedLanguages.contains(Language.fr) ||
+      selectedLanguages.contains(Language.all);
+  bool get showEnglish =>
+      selectedLanguages.contains(Language.en) ||
+      selectedLanguages.contains(Language.all);
+  bool get showKorean =>
+      selectedLanguages.contains(Language.ko) ||
+      selectedLanguages.contains(Language.all);
+}
+
 class AppRouter {
   static Route<dynamic> generateRoute(RouteSettings settings) {
+    // Get the QuotesService from the settings arguments
+    final args = settings.arguments as Map<String, dynamic>?;
+    final quotesService = args?['quotesService'] as QuotesService?;
+
     switch (settings.name) {
       case '/motivation':
-        return MaterialPageRoute(builder: (_) => const MotivationScreen());
-      case '/quiz':
-        return MaterialPageRoute(builder: (_) => const QuizScreen());
-      case '/game':
-        return MaterialPageRoute(builder: (_) => const GameScreen());
-      case '/game2':
-        return MaterialPageRoute(builder: (_) => const Game2Screen());
-      default:
         return MaterialPageRoute(
-          builder: (_) => Scaffold(
-            body: Center(child: Text('Page not found: ${settings.name}')),
+          builder: (_) => MotivationScreen(
+            quotesService: quotesService!,
           ),
         );
+      default:
+        throw Exception('Route not found: ${settings.name}');
     }
+  }
+}
+
+class QuotesService {
+  final QuotesCacheService cacheService;
+
+  QuotesService(this.cacheService);
+
+  static const String _url =
+      'https://raw.githubusercontent.com/kimku003/quotes/main/quotes.json';
+
+  Future<QuotesResponse> fetchQuotes() async {
+    try {
+      print('Fetching quotes from: $_url'); // Debug log
+
+      final response = await http.get(Uri.parse(_url));
+      print('Response status code: ${response.statusCode}'); // Debug log
+
+      if (response.statusCode == 200) {
+        print('Response body: ${response.body}'); // Debug log
+        final decodedData = json.decode(response.body);
+        cacheService.saveQuotes(response.body);
+        return QuotesResponse.fromJson(decodedData);
+      } else {
+        throw Exception('Failed to load quotes: ${response.statusCode}');
+      }
+    } catch (e) {
+      print('Error fetching quotes: $e'); // Debug log
+      final cachedData = cacheService.getCachedQuotes();
+      if (cachedData != null) {
+        return QuotesResponse.fromJson(json.decode(cachedData));
+      }
+      throw Exception('Error fetching quotes: $e');
+    }
+  }
+}
+
+class QuotesCacheService {
+  final SharedPreferences prefs;
+
+  QuotesCacheService(this.prefs);
+
+  void saveQuotes(String quotesJson) {
+    prefs.setString('cached_quotes', quotesJson);
+  }
+
+  String? getCachedQuotes() {
+    return prefs.getString('cached_quotes');
+  }
+}
+
+class QuotesResponse {
+  final String lastUpdated;
+  final List<Quote> quotes;
+
+  QuotesResponse({
+    required this.lastUpdated,
+    required this.quotes,
+  });
+
+  factory QuotesResponse.fromJson(Map<String, dynamic> json) {
+    return QuotesResponse(
+      lastUpdated: json['last_updated'] as String,
+      quotes: (json['quotes'] as List)
+          .map((quote) => Quote.fromJson(quote))
+          .toList(),
+    );
+  }
+}
+
+class Quote {
+  final String id;
+  final Map<String, String> translations;
+  final Map<String, String> from; // Changed from String to Map<String, String>
+  final List<String> tags;
+  final String category;
+
+  Quote({
+    required this.id,
+    required this.translations,
+    required this.from,
+    required this.tags,
+    required this.category,
+  });
+
+  factory Quote.fromJson(Map<String, dynamic> json) {
+    return Quote(
+      id: json['id'] as String,
+      translations: Map<String, String>.from(json['translations']),
+      from: Map<String, String>.from(json['from']), // Parse from as a Map
+      tags: List<String>.from(json['tags']),
+      category: json['category'] as String,
+    );
   }
 }
