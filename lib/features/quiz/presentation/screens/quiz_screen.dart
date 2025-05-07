@@ -1,41 +1,62 @@
 import 'package:flutter/material.dart';
-import 'questions_screen.dart'; // Import de l'écran des questions
+import 'questions_screen.dart';
+import 'culture_quiz_screen.dart';
+import '../../data/services/spicy_quiz_service.dart';
+import '../../data/services/quiz_service.dart';
 
 class QuizScreen extends StatelessWidget {
-  const QuizScreen({super.key});
+  final QuizService quizService;
+  final SpicyQuizService spicyQuizService;
+
+  const QuizScreen({
+    super.key,
+    required this.quizService,
+    required this.spicyQuizService,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: _buildAppBar(),
-      body: _buildBody(context),
-      backgroundColor: Colors.grey[100], // Fond plus doux
+      body: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _buildWelcomeMessage(context),
+              const SizedBox(height: 40),
+              _buildGameButtons(context),
+            ],
+          ),
+        ),
+      ),
+      backgroundColor: Colors.grey[100],
     );
   }
 
-  // Composant AppBar réutilisable
   PreferredSizeWidget _buildAppBar() {
     return AppBar(
       title: const Text(
-        'Quiz Culture Générale',
+        'Mini-Jeux Quiz',
         style: TextStyle(
           fontWeight: FontWeight.bold,
           fontSize: 20,
         ),
       ),
       centerTitle: true,
-      elevation: 2, // Ombre légère
+      elevation: 2,
       actions: [
         IconButton(
           icon: const Icon(Icons.info_outline),
-          onPressed: () {}, // À implémenter
+          onPressed: () {},
           tooltip: 'Aide',
         ),
       ],
     );
   }
 
-  // Corps de la page
   Widget _buildBody(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.all(16.0),
@@ -45,18 +66,17 @@ class QuizScreen extends StatelessWidget {
         children: [
           _buildWelcomeMessage(context),
           const SizedBox(height: 40),
-          _buildStartButton(context),
+          _buildGameButtons(context),
         ],
       ),
     );
   }
 
-  // Message de bienvenue
   Widget _buildWelcomeMessage(BuildContext context) {
     return Column(
       children: [
         Text(
-          'Bienvenue au Quiz !',
+          'Choisissez votre Quiz !',
           style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                 fontWeight: FontWeight.bold,
                 color: Colors.blue[800],
@@ -65,7 +85,7 @@ class QuizScreen extends StatelessWidget {
         ),
         const SizedBox(height: 16),
         Text(
-          'Testez vos connaissances avec 10 questions variées',
+          'Deux modes de jeu disponibles',
           style: Theme.of(context).textTheme.titleMedium?.copyWith(
                 color: Colors.grey[700],
               ),
@@ -75,30 +95,89 @@ class QuizScreen extends StatelessWidget {
     );
   }
 
-  // Bouton de démarrage
-  Widget _buildStartButton(BuildContext context) {
-    return ElevatedButton(
-      onPressed: () {
-        Navigator.push(
+  Widget _buildGameButtons(BuildContext context) {
+    return Column(
+      children: [
+        _buildGameCard(
           context,
-          MaterialPageRoute(
-              builder: (_) =>
-                  const QuestionsScreen()), // Navigation vers QuestionsScreen
-        );
-      },
-      style: ElevatedButton.styleFrom(
-        padding: const EdgeInsets.symmetric(vertical: 16),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
+          title: 'Quiz Sarcastique',
+          description: 'Un quiz qui n\'a pas sa langue dans sa poche !',
+          icon: Icons.mood,
+          color: Colors.deepPurple,
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => QuestionsScreen(
+                  spicyQuizService: spicyQuizService,
+                ),
+              ),
+            );
+          },
         ),
-        backgroundColor: Colors.blueAccent, // Couleur principale
+        const SizedBox(height: 20),
+        _buildGameCard(
+          context,
+          title: 'Quiz de culture générale',
+          description: 'Testez votre culture générale avec 100 questions !',
+          icon: Icons.school,
+          color: Colors.greenAccent[700]!,
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => CultureQuizScreen(quizService: quizService),
+              ),
+            );
+          },
+        ),
+      ],
+    );
+  }
+
+  Widget _buildGameCard(
+    BuildContext context, {
+    required String title,
+    required String description,
+    required IconData icon,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return Card(
+      elevation: 4,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
       ),
-      child: const Text(
-        'COMMENCER LE QUIZ',
-        style: TextStyle(
-          fontSize: 18,
-          fontWeight: FontWeight.bold,
-          color: Colors.white,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            children: [
+              Icon(
+                icon,
+                size: 48,
+                color: color,
+              ),
+              const SizedBox(height: 16),
+              Text(
+                title,
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black87,
+                    ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                description,
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: Colors.grey[600],
+                    ),
+              ),
+            ],
+          ),
         ),
       ),
     );

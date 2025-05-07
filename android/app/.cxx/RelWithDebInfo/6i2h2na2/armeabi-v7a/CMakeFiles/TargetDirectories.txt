@@ -1,0 +1,2 @@
+D:/kim_cle/fedora/motivapp/android/app/.cxx/RelWithDebInfo/6i2h2na2/armeabi-v7a/CMakeFiles/edit_cache.dir
+D:/kim_cle/fedora/motivapp/android/app/.cxx/RelWithDebInfo/6i2h2na2/armeabi-v7a/CMakeFiles/rebuild_cache.dir

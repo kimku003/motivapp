@@ -1,0 +1,2 @@
+D:/kim_cle/fedora/motivapp/android/app/.cxx/RelWithDebInfo/6i2h2na2/x86/CMakeFiles/edit_cache.dir
+D:/kim_cle/fedora/motivapp/android/app/.cxx/RelWithDebInfo/6i2h2na2/x86/CMakeFiles/rebuild_cache.dir

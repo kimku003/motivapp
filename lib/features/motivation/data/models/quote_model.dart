@@ -3,27 +3,41 @@ import 'dart:convert';
 class Quote {
   final String id;
   final Map<String, String> translations;
-  final String from;
-  final List<String> tags;
+  final Map<String, String> from;
   final String category;
+  final List<String> tags;
 
   Quote({
     required this.id,
     required this.translations,
     required this.from,
-    required this.tags,
     required this.category,
+    required this.tags,
   });
 
   factory Quote.fromJson(Map<String, dynamic> json) {
-    return Quote(
-      id: json['id'],
-      translations: Map<String, String>.from(json['translations']),
-      from: json['from'],
-      tags: List<String>.from(json['tags']),
-      category: json['category'],
-    );
+    try {
+      return Quote(
+        id: json['id'] as String,
+        translations: Map<String, String>.from(json['translations'] as Map),
+        from: Map<String, String>.from(json['from'] as Map),
+        category: json['category'] as String,
+        tags: List<String>.from(json['tags'] as List),
+      );
+    } catch (e) {
+      print('Error parsing Quote: $e');
+      print('JSON data: $json');
+      rethrow;
+    }
   }
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'translations': translations,
+        'from': from,
+        'category': category,
+        'tags': tags,
+      };
 }
 
 class QuotesResponse {

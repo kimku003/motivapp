@@ -7,22 +7,51 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'features/quiz/presentation/screens/quiz_screen.dart';
 import 'features/game/presentation/screens/game_screen.dart';
 import 'features/game/presentation/screens/game2_screen.dart';
+import 'features/quiz/data/services/quiz_cache_service.dart';
+import 'features/quiz/data/services/quiz_service.dart';
+import 'features/quiz/data/services/spicy_quiz_service.dart';
+import 'features/quiz/data/services/spicy_quiz_cache_service.dart';
+import 'features/quiz/presentation/screens/culture_quiz_screen.dart';
+import 'features/motivation/presentation/screens/motivation_screen.dart';
+import 'features/motivation/data/services/quotes_service.dart';
+import 'features/motivation/data/services/quotes_cache_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Initialize services
   final prefs = await SharedPreferences.getInstance();
-  final cacheService = QuotesCacheService(prefs);
-  final quotesService = QuotesService(cacheService);
 
-  runApp(MyApp(quotesService: quotesService));
+  // Services pour les citations
+  final quotesCacheService = QuotesCacheService(prefs);
+  final quotesService = QuotesService(quotesCacheService);
+
+  // Services pour le quiz culture générale
+  final quizCacheService = QuizCacheService(prefs);
+  final quizService = QuizService(quizCacheService);
+
+  // Services pour le quiz sarcastique
+  final spicyQuizCacheService = SpicyQuizCacheService(prefs);
+  final spicyQuizService =
+      SpicyQuizService(spicyQuizCacheService); // Fixed this line
+
+  runApp(MyApp(
+    quotesService: quotesService,
+    quizService: quizService,
+    spicyQuizService: spicyQuizService,
+  ));
 }
 
 class MyApp extends StatelessWidget {
   final QuotesService quotesService;
+  final QuizService quizService;
+  final SpicyQuizService spicyQuizService;
 
-  const MyApp({super.key, required this.quotesService});
+  const MyApp({
+    super.key,
+    required this.quotesService,
+    required this.quizService,
+    required this.spicyQuizService,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -44,15 +73,26 @@ class MyApp extends StatelessWidget {
         ),
       ),
       themeMode: ThemeMode.system,
-      home: MainNavigationScreen(quotesService: quotesService),
+      home: MainNavigationScreen(
+        quotesService: quotesService,
+        quizService: quizService,
+        spicyQuizService: spicyQuizService,
+      ),
     );
   }
 }
 
 class MainNavigationScreen extends StatefulWidget {
   final QuotesService quotesService;
+  final QuizService quizService;
+  final SpicyQuizService spicyQuizService;
 
-  const MainNavigationScreen({super.key, required this.quotesService});
+  const MainNavigationScreen({
+    super.key,
+    required this.quotesService,
+    required this.quizService,
+    required this.spicyQuizService,
+  });
 
   @override
   State<MainNavigationScreen> createState() => _MainNavigationScreenState();
@@ -64,26 +104,35 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: IndexedStack(
-        index: _selectedIndex,
-        children: [
-          MotivationScreen(quotesService: widget.quotesService),
-          const QuizScreen(),
-          const GameScreen(),
-          const Game2Screen(),
-        ],
+      body: SafeArea(
+        child: SingleChildScrollView(
+          child: SizedBox(
+            height: MediaQuery.of(context).size.height -
+                kBottomNavigationBarHeight -
+                MediaQuery.of(context).padding.top,
+            child: IndexedStack(
+              index: _selectedIndex,
+              children: [
+                MotivationScreen(quotesService: widget.quotesService),
+                QuizScreen(
+                  quizService: widget.quizService,
+                  spicyQuizService: widget.spicyQuizService,
+                ),
+                const GameScreen(),
+                const Game2Screen(),
+              ],
+            ),
+          ),
+        ),
       ),
       bottomNavigationBar: BottomNavigationBar(
+        type: BottomNavigationBarType.fixed,
         currentIndex: _selectedIndex,
         onTap: (index) {
           setState(() {
             _selectedIndex = index;
           });
         },
-        type: BottomNavigationBarType.fixed,
-        backgroundColor: Colors.black.withOpacity(0.8),
-        selectedItemColor: Colors.white,
-        unselectedItemColor: Colors.white.withOpacity(0.5),
         items: const [
           BottomNavigationBarItem(
             icon: Icon(Icons.format_quote),
@@ -94,516 +143,15 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
             label: 'Quiz',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.games),
+            icon: Icon(Icons.gamepad),
             label: 'Jeu 1',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.gamepad),
+            icon: Icon(Icons.sports_esports),
             label: 'Jeu 2',
           ),
         ],
       ),
-    );
-  }
-}
-
-class MotivationScreen extends StatefulWidget {
-  final QuotesService quotesService;
-
-  const MotivationScreen({super.key, required this.quotesService});
-
-  @override
-  State<MotivationScreen> createState() => _MotivationScreenState();
-}
-
-class _MotivationScreenState extends State<MotivationScreen>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-  List<Quote> _quotes = [];
-  int _currentQuoteIndex = 0;
-  QuoteMode _quoteMode = QuoteMode.motivation;
-  bool _isLoading = true;
-  LanguageSettings _languageSettings =
-      LanguageSettings(selectedLanguages: {Language.all});
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(
-      duration: const Duration(seconds: 10),
-      vsync: this,
-    )..repeat();
-    _loadQuotes();
-  }
-
-  Future<void> _loadQuotes() async {
-    try {
-      final response = await widget.quotesService.fetchQuotes();
-      setState(() {
-        _quotes = response.quotes;
-        _isLoading = false;
-      });
-    } catch (e) {
-      print('Error loading quotes: $e');
-      setState(() {
-        _isLoading = false;
-        // Show error message to user
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error loading quotes: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      });
-    }
-  }
-
-  List<Quote> get _currentQuotes {
-    return _quotes
-        .where((quote) =>
-            quote.category ==
-            (_quoteMode == QuoteMode.motivation ? "motivational" : "spicy"))
-        .toList();
-  }
-
-  void _changeQuote() {
-    if (_currentQuotes.isNotEmpty) {
-      setState(() {
-        _currentQuoteIndex = (_currentQuoteIndex + 1) % _currentQuotes.length;
-      });
-    }
-  }
-
-  void _toggleQuoteMode() {
-    setState(() {
-      _quoteMode = _quoteMode == QuoteMode.motivation
-          ? QuoteMode.spicy
-          : QuoteMode.motivation;
-      _currentQuoteIndex = 0;
-    });
-  }
-
-  void _toggleLanguage(Language language) {
-    setState(() {
-      if (language == Language.all) {
-        _languageSettings = LanguageSettings(selectedLanguages: {Language.all});
-      } else {
-        var newLanguages =
-            Set<Language>.from(_languageSettings.selectedLanguages);
-        if (newLanguages.contains(Language.all)) {
-          newLanguages = {language};
-        } else if (newLanguages.contains(language)) {
-          if (newLanguages.length > 1) {
-            newLanguages.remove(language);
-          }
-        } else if (newLanguages.length < 2) {
-          newLanguages.add(language);
-        }
-        _languageSettings = LanguageSettings(selectedLanguages: newLanguages);
-      }
-    });
-  }
-
-  Widget _buildLanguageSelector() {
-    return Wrap(
-      spacing: 8,
-      children: [
-        FilterChip(
-          label: const Text('FR'),
-          selected: _languageSettings.showFrench,
-          onSelected: (_) => _toggleLanguage(Language.fr),
-        ),
-        FilterChip(
-          label: const Text('EN'),
-          selected: _languageSettings.showEnglish,
-          onSelected: (_) => _toggleLanguage(Language.en),
-        ),
-        FilterChip(
-          label: const Text('KO'),
-          selected: _languageSettings.showKorean,
-          onSelected: (_) => _toggleLanguage(Language.ko),
-        ),
-        FilterChip(
-          label: const Text('ALL'),
-          selected: _languageSettings.selectedLanguages.contains(Language.all),
-          onSelected: (_) => _toggleLanguage(Language.all),
-        ),
-      ],
-    );
-  }
-
-  Color _getBackgroundColor() {
-    final hour = DateTime.now().hour;
-    if (hour < 6 || hour >= 18) {
-      // Nuit
-      return Colors.indigo.shade900;
-    } else if (hour < 12) {
-      // Matin
-      return Colors.blue.shade800;
-    } else {
-      // Après-midi
-      return Colors.purple.shade700;
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: RefreshIndicator(
-        onRefresh: _loadQuotes,
-        child: GestureDetector(
-          onTap: _changeQuote,
-          child: Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  _getBackgroundColor(),
-                  Colors.purple.shade900,
-                ],
-              ),
-            ),
-            child: CustomPaint(
-              painter: _ParticlesPainter(controller: _controller),
-              child: Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    AnimatedBuilder(
-                      animation: _controller,
-                      builder: (_, child) {
-                        return Transform.rotate(
-                          angle: _controller.value * 2 * math.pi,
-                          child: child,
-                        );
-                      },
-                      child: Container(
-                        width: 150,
-                        height: 150,
-                        decoration: BoxDecoration(
-                          color: Colors.transparent,
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: Colors.white,
-                            width: 4,
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.white.withOpacity(0.5),
-                              blurRadius: 15,
-                              spreadRadius: 5,
-                            ),
-                          ],
-                        ),
-                        child: const Icon(
-                          Icons.star,
-                          color: Colors.white,
-                          size: 80,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 40),
-
-                    // Affichage de la citation avec animation
-                    AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 500),
-                      child: _isLoading
-                          ? const CircularProgressIndicator()
-                          : Card(
-                              color: Colors.black.withOpacity(0.2),
-                              child: Padding(
-                                padding: const EdgeInsets.all(20.0),
-                                child: Column(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    _buildLanguageSelector(), // Ajout du sélecteur de langues
-                                    const SizedBox(height: 20),
-                                    if (_languageSettings.showFrench) ...[
-                                      Text(
-                                        _currentQuotes.isNotEmpty
-                                            ? _currentQuotes[_currentQuoteIndex]
-                                                    .translations['fr'] ??
-                                                ''
-                                            : 'Aucune citation disponible',
-                                        style: const TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 24,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                        textAlign: TextAlign.center,
-                                      ),
-                                      const SizedBox(height: 20),
-                                    ],
-                                    if (_languageSettings.showEnglish) ...[
-                                      Text(
-                                        _currentQuotes.isNotEmpty
-                                            ? _currentQuotes[_currentQuoteIndex]
-                                                    .translations['en'] ??
-                                                ''
-                                            : 'No quote available',
-                                        style: TextStyle(
-                                          color: Colors.white.withOpacity(0.8),
-                                          fontSize: 20,
-                                          fontStyle: FontStyle.italic,
-                                        ),
-                                        textAlign: TextAlign.center,
-                                      ),
-                                      const SizedBox(height: 20),
-                                    ],
-                                    if (_languageSettings.showKorean) ...[
-                                      Text(
-                                        _currentQuotes.isNotEmpty
-                                            ? _currentQuotes[_currentQuoteIndex]
-                                                    .translations['ko'] ??
-                                                ''
-                                            : '인용구 없음',
-                                        style: TextStyle(
-                                          color: Colors.white.withOpacity(0.8),
-                                          fontSize: 20,
-                                        ),
-                                        textAlign: TextAlign.center,
-                                      ),
-                                      const SizedBox(height: 20),
-                                    ],
-                                    // Affichage de l'auteur dans la langue sélectionnée
-                                    if (_currentQuotes.isNotEmpty) ...[
-                                      const SizedBox(height: 20),
-                                      Container(
-                                        padding: const EdgeInsets.all(10),
-                                        decoration: BoxDecoration(
-                                          border: Border(
-                                            top: BorderSide(
-                                              color:
-                                                  Colors.white.withOpacity(0.3),
-                                              width: 1,
-                                            ),
-                                          ),
-                                        ),
-                                        child: Column(
-                                          children: [
-                                            if (_languageSettings
-                                                .selectedLanguages
-                                                .contains(Language.all)) ...[
-                                              if (_languageSettings.showFrench)
-                                                Text(
-                                                  "- ${_currentQuotes[_currentQuoteIndex].from['fr'] ?? ''}",
-                                                  style: const TextStyle(
-                                                    color: Colors.white,
-                                                    fontSize: 18,
-                                                    fontWeight: FontWeight.bold,
-                                                  ),
-                                                  textAlign: TextAlign.center,
-                                                ),
-                                              if (_languageSettings.showEnglish)
-                                                Text(
-                                                  "- ${_currentQuotes[_currentQuoteIndex].from['en'] ?? ''}",
-                                                  style: TextStyle(
-                                                    color: Colors.white
-                                                        .withOpacity(0.8),
-                                                    fontSize: 16,
-                                                    fontStyle: FontStyle.italic,
-                                                  ),
-                                                  textAlign: TextAlign.center,
-                                                ),
-                                              if (_languageSettings.showKorean)
-                                                Text(
-                                                  "- ${_currentQuotes[_currentQuoteIndex].from['ko'] ?? ''}",
-                                                  style: TextStyle(
-                                                    color: Colors.white
-                                                        .withOpacity(0.8),
-                                                    fontSize: 16,
-                                                  ),
-                                                  textAlign: TextAlign.center,
-                                                ),
-                                            ] else ...[
-                                              for (var lang in _languageSettings
-                                                  .selectedLanguages)
-                                                Text(
-                                                  "- ${_currentQuotes[_currentQuoteIndex].from[lang.name] ?? ''}",
-                                                  style: const TextStyle(
-                                                    color: Colors.white,
-                                                    fontSize: 18,
-                                                    fontWeight: FontWeight.w500,
-                                                  ),
-                                                  textAlign: TextAlign.center,
-                                                ),
-                                            ],
-                                          ],
-                                        ),
-                                      ),
-                                    ],
-                                  ],
-                                ),
-                              ),
-                            ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _ParticlesPainter extends CustomPainter {
-  final AnimationController controller;
-
-  _ParticlesPainter({required this.controller}) : super(repaint: controller);
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final random = math.Random();
-    final paint = Paint()
-      ..color = Colors.white.withOpacity(0.2)
-      ..style = PaintingStyle.fill;
-
-    for (int i = 0; i < 30; i++) {
-      final x = random.nextDouble() * size.width;
-      final y = random.nextDouble() * size.height;
-      final radius = random.nextDouble() * 3 + 1;
-      final offset = Offset(x, y + controller.value * 20 % size.height);
-      canvas.drawCircle(offset, radius, paint);
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
-}
-
-enum QuoteMode { motivation, spicy }
-
-enum Language { fr, en, ko, all }
-
-class LanguageSettings {
-  final Set<Language> selectedLanguages;
-
-  const LanguageSettings({
-    required this.selectedLanguages,
-  });
-
-  bool get showFrench =>
-      selectedLanguages.contains(Language.fr) ||
-      selectedLanguages.contains(Language.all);
-  bool get showEnglish =>
-      selectedLanguages.contains(Language.en) ||
-      selectedLanguages.contains(Language.all);
-  bool get showKorean =>
-      selectedLanguages.contains(Language.ko) ||
-      selectedLanguages.contains(Language.all);
-}
-
-class AppRouter {
-  static Route<dynamic> generateRoute(RouteSettings settings) {
-    // Get the QuotesService from the settings arguments
-    final args = settings.arguments as Map<String, dynamic>?;
-    final quotesService = args?['quotesService'] as QuotesService?;
-
-    switch (settings.name) {
-      case '/motivation':
-        return MaterialPageRoute(
-          builder: (_) => MotivationScreen(
-            quotesService: quotesService!,
-          ),
-        );
-      default:
-        throw Exception('Route not found: ${settings.name}');
-    }
-  }
-}
-
-class QuotesService {
-  final QuotesCacheService cacheService;
-
-  QuotesService(this.cacheService);
-
-  static const String _url =
-      'https://raw.githubusercontent.com/kimku003/quotes/main/quotes.json';
-
-  Future<QuotesResponse> fetchQuotes() async {
-    try {
-      print('Fetching quotes from: $_url'); // Debug log
-
-      final response = await http.get(Uri.parse(_url));
-      print('Response status code: ${response.statusCode}'); // Debug log
-
-      if (response.statusCode == 200) {
-        print('Response body: ${response.body}'); // Debug log
-        final decodedData = json.decode(response.body);
-        cacheService.saveQuotes(response.body);
-        return QuotesResponse.fromJson(decodedData);
-      } else {
-        throw Exception('Failed to load quotes: ${response.statusCode}');
-      }
-    } catch (e) {
-      print('Error fetching quotes: $e'); // Debug log
-      final cachedData = cacheService.getCachedQuotes();
-      if (cachedData != null) {
-        return QuotesResponse.fromJson(json.decode(cachedData));
-      }
-      throw Exception('Error fetching quotes: $e');
-    }
-  }
-}
-
-class QuotesCacheService {
-  final SharedPreferences prefs;
-
-  QuotesCacheService(this.prefs);
-
-  void saveQuotes(String quotesJson) {
-    prefs.setString('cached_quotes', quotesJson);
-  }
-
-  String? getCachedQuotes() {
-    return prefs.getString('cached_quotes');
-  }
-}
-
-class QuotesResponse {
-  final String lastUpdated;
-  final List<Quote> quotes;
-
-  QuotesResponse({
-    required this.lastUpdated,
-    required this.quotes,
-  });
-
-  factory QuotesResponse.fromJson(Map<String, dynamic> json) {
-    return QuotesResponse(
-      lastUpdated: json['last_updated'] as String,
-      quotes: (json['quotes'] as List)
-          .map((quote) => Quote.fromJson(quote))
-          .toList(),
-    );
-  }
-}
-
-class Quote {
-  final String id;
-  final Map<String, String> translations;
-  final Map<String, String> from; // Changed from String to Map<String, String>
-  final List<String> tags;
-  final String category;
-
-  Quote({
-    required this.id,
-    required this.translations,
-    required this.from,
-    required this.tags,
-    required this.category,
-  });
-
-  factory Quote.fromJson(Map<String, dynamic> json) {
-    return Quote(
-      id: json['id'] as String,
-      translations: Map<String, String>.from(json['translations']),
-      from: Map<String, String>.from(json['from']), // Parse from as a Map
-      tags: List<String>.from(json['tags']),
-      category: json['category'] as String,
     );
   }
 }
